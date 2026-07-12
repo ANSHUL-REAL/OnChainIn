@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" aria-hidden="true">
+  <!-- OnChainIn mark: geometric X / chevron form -->
+  <path
+    fill="#192837"
+    d="M48 48h56l80 80-40 40-96-96zm104 0h56v56l-56 56V48zM48 152l56 56H48v-56zm104 24l56 56h-56v-56z"
+  />
+  <path
+    fill="#192837"
+    fill-rule="evenodd"
+    d="M40 40h72.5L208 135.5V40h48v176h-72.5L88 120.5V216H40V40zm24 24v56l56 56V120L64 64zm128 0v72l-48 48h48V64zM64 152v40h40l-40-40zm88 40l40 40h-40v-40z"
+    clip-rule="evenodd"
+  />
+</svg>

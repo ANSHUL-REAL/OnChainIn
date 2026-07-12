@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-label="PUBG Campus Arena event poster">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#11150b"/>
+      <stop offset="0.48" stop-color="#2b3610"/>
+      <stop offset="1" stop-color="#f2c46d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="72%" cy="28%" r="55%">
+      <stop stop-color="#d8f066" stop-opacity="0.72"/>
+      <stop offset="0.45" stop-color="#52670f" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#11150b" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="22" flood-color="#0c1007" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect width="1200" height="700" fill="url(#glow)"/>
+  <path d="M0 520 C260 420 360 620 610 510 C820 420 940 480 1200 350 L1200 700 L0 700 Z" fill="#0c1007" opacity="0.62"/>
+  <g opacity="0.18" stroke="#fff7d7" stroke-width="2">
+    <path d="M90 80H1110M90 160H1110M90 240H1110M90 320H1110M90 400H1110M90 480H1110"/>
+    <path d="M160 50V610M300 50V610M440 50V610M580 50V610M720 50V610M860 50V610M1000 50V610"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="78" y="84" width="380" height="92" rx="46" fill="#fffdf2" opacity="0.92"/>
+    <text x="122" y="142" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" fill="#52670f" letter-spacing="6">EVENTOS ARENA</text>
+    <text x="84" y="322" font-family="Inter, Arial, sans-serif" font-size="96" font-weight="950" fill="#fffdf2">PUBG</text>
+    <text x="84" y="418" font-family="Inter, Arial, sans-serif" font-size="96" font-weight="950" fill="#d8f066">CAMPUS ARENA</text>
+    <text x="90" y="478" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#fff6df">Squads, QR check-in, approvals, certificates.</text>
+  </g>
+  <g transform="translate(742 160)" filter="url(#shadow)">
+    <rect x="0" y="0" width="304" height="360" rx="48" fill="#fffdf2" opacity="0.96"/>
+    <rect x="34" y="46" width="236" height="140" rx="32" fill="#eef5d9"/>
+    <circle cx="152" cy="116" r="42" fill="#52670f"/>
+    <path d="M132 130 L152 84 L172 130 Z" fill="#d8f066"/>
+    <rect x="34" y="218" width="236" height="24" rx="12" fill="#52670f" opacity="0.24"/>
+    <rect x="34" y="264" width="180" height="24" rx="12" fill="#52670f" opacity="0.18"/>
+    <rect x="34" y="310" width="214" height="24" rx="12" fill="#52670f" opacity="0.16"/>
+  </g>
+  <text x="90" y="625" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900" fill="#fffdf2" letter-spacing="5">HYDERABAD · JUNE 28 · 80 SEATS</text>
+</svg>
