@@ -120,14 +120,30 @@ function parsePromptDate(prompt: string) {
   return formatDateInput(candidate);
 }
 
+function longDescription(title: string, kind: string, cityHint: string) {
+  const where = cityHint ? ` in ${cityHint}` : '';
+  return `${title} is a thoughtfully designed ${kind} for students, builders, and campus communities${where}. Whether you are joining to learn, compete, network, or showcase your work, the day is structured so every participant knows what to expect—from first application to final certificate.
+
+The program mixes focused sessions with practical interaction: welcome and orientation, core activities (talks, builds, matches, or performances depending on the format), guided breaks, and a clear closing with outcomes and next steps. Organizers keep the flow tight so time is spent on the experience—not on chaotic queues or unclear rules.
+
+Who should attend? Anyone who matches the theme and is ready to participate actively. Bring curiosity, a laptop or kit if the format needs it, and a willingness to collaborate. Beginners are welcome when the brief is learning-first; advanced participants will find room to push deeper challenges and peer learning.
+
+OnChainIn runs the operations layer: you apply with a short form, organizers review and approve seats, approved participants receive a ticket/QR, and on event day check-in is handled smoothly at the desk (with optional Cardano-verified attendance when the event is in Cardano mode). After verified participation, certificates and proof records can be issued so your work is not just a claim—it is documented.
+
+Expect a professional yet campus-friendly atmosphere: clear communication before the event, volunteer support on the ground, and transparent rules for prizes or showcases if those apply. Come ready to engage, meet people, and leave with skills, connections, and a record of participation you can share.`;
+}
+
 function inferPromptBasics(prompt: string) {
   const lower = prompt.toLowerCase();
+  const city = ['hyderabad', 'bangalore', 'bengaluru', 'mumbai', 'delhi', 'pune', 'chennai'].find(name => lower.includes(name));
+  const cityLabel = city ? city[0].toUpperCase() + city.slice(1) : '';
   if (/\b(pubg|bgmi|free fire|esports|gaming)\b/.test(lower)) {
+    const title = lower.includes('bgmi') ? 'BGMI Tournament' : 'PUBG Tournament';
     return {
-      title: lower.includes('bgmi') ? 'BGMI Tournament' : 'PUBG Tournament',
+      title,
       category: 'Gaming / Esports',
       seats: 50,
-      description: 'PUBG Tournament is a competitive gaming event where players compete in structured matches with organizer-reviewed registrations. Approved participants receive access details and QR-based check-in, while winners and verified participation can later become certificates and Proof Passport records.',
+      description: longDescription(title, 'competitive esports tournament', cityLabel),
     };
   }
   if (/\b(ai|machine learning|gen ai|artificial intelligence)\b/.test(lower)) {
@@ -135,15 +151,16 @@ function inferPromptBasics(prompt: string) {
       title: 'AI Workshop',
       category: 'Technology / AI',
       seats: 100,
-      description: 'AI Workshop is a practical learning event for participants who want hands-on exposure to modern AI concepts, tools, and workflows. Registrations require organizer approval, approved attendees receive QR check-in access, and verified participation can become certificates and Proof Passport records.',
+      description: longDescription('AI Workshop', 'hands-on AI learning workshop', cityLabel),
     };
   }
   if (/\b(hackathon|coding)\b/.test(lower)) {
+    const title = lower.includes('24') ? '24-Hour Hackathon' : 'Hackathon';
     return {
-      title: lower.includes('24') ? '24-Hour Hackathon' : 'Hackathon',
+      title,
       category: 'Hackathon / Technology',
       seats: 200,
-      description: 'Hackathon is a build-focused event where participants work on ideas, prototypes, and problem-solving in a structured event flow. Organizer approval controls participant access, and verified attendance can support certificates and Proof Passport records.',
+      description: longDescription(title, 'build-focused hackathon', cityLabel),
     };
   }
   if (/\b(dance|music|cultural|fest)\b/.test(lower)) {
@@ -151,14 +168,14 @@ function inferPromptBasics(prompt: string) {
       title: 'Cultural Event',
       category: 'Cultural',
       seats: 100,
-      description: 'Cultural Event brings participants together for a curated program with organizer-approved registrations, smooth event check-in, and verified participation records through OnChainIn.',
+      description: longDescription('Cultural Event', 'campus cultural program', cityLabel),
     };
   }
   return {
     title: 'OnChainIn Event',
     category: 'General',
     seats: 100,
-    description: 'This event is organized with registration approval, check-in management, and participant verification through OnChainIn. Approved attendees receive event access details, and verified participation can later support certificates and Proof Passport records.',
+    description: longDescription('OnChainIn Event', 'community event', cityLabel),
   };
 }
 
