@@ -82,7 +82,8 @@ export function WalletConnect({
           )}
           <p className="text-[10px] text-[#9AA08D]">
             Switch wallet to <strong>Preprod</strong> testnet for demos. Mobile: open this site inside
-            Vespr / Eternl in-app browser.
+            Vespr / Eternl in-app browser. If signing fails with “channel shutdown”, disconnect,
+            reconnect, then approve the popup right away (do not switch tabs).
           </p>
         </div>
       )}

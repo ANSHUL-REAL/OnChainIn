@@ -23,7 +23,7 @@ declare global {
 export default function EventAttendance() {
   const { id } = useParams<{ id: string }>();
   const event = store.getEventById(id || '');
-  const { connected, wallet, address } = useWallet();
+  const { connected, wallet, address, name: walletName } = useWallet();
   const [code, setCode] = useState('');
   const [query, setQuery] = useState('');
   const [handledBy, setHandledBy] = useState('organizer');
@@ -106,16 +106,20 @@ export default function EventAttendance() {
     setCardanoBusy(true);
     setMessage(null);
     try {
-      const result = await submitOnChainProof(wallet, {
-        kind: 'attendance',
-        eventId: event.id,
-        eventTitle: event.title,
-        registrationCode: reg.registration_code || '',
-        role: 'participant',
-        participantId: reg.participant_id,
-        session: 'Main Session',
-        location: event.city || event.venue || '',
-      });
+      const result = await submitOnChainProof(
+        wallet,
+        {
+          kind: 'attendance',
+          eventId: event.id,
+          eventTitle: event.title,
+          registrationCode: reg.registration_code || '',
+          role: 'participant',
+          participantId: reg.participant_id,
+          session: 'Main Session',
+          location: event.city || event.venue || '',
+        },
+        { walletName },
+      );
       doCheckIn(reg, 'cardano', { txHash: result.txHash, walletAddress: result.walletAddress });
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : String(err), type: 'error' });

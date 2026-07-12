@@ -40,7 +40,7 @@ export function CardanoAdaPay({
   helperText,
   onPaid,
 }: Props) {
-  const { connected, wallet } = useWallet()
+  const { connected, wallet, name: walletName } = useWallet()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [lastTx, setLastTx] = useState<string | null>(null)
@@ -65,6 +65,7 @@ export function CardanoAdaPay({
         toAddress,
         adaAmount,
         payload,
+        walletName,
       })
       setLastTx(result.txHash)
       onPaid({

@@ -3,7 +3,7 @@
  * - Attendance proof (self-send + metadata)
  * - ADA payments: fees, sponsorship, prizes, volunteer payouts
  */
-import { Transaction } from '@meshsdk/core'
+import { BrowserWallet, Transaction } from '@meshsdk/core'
 import type { IWallet } from '@meshsdk/common'
 
 export const CARDANO = {
@@ -181,9 +181,73 @@ export function buildPaymentMetadata(payload: AdaPaymentPayload, adaAmount: numb
   }
 }
 
+/** Lace / CIP-30 often kills the injected API after idle, tab sleep, or extension reload. */
+export function isStaleWalletError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  return (
+    msg.includes('shutdown') ||
+    msg.includes('no longer be used') ||
+    msg.includes('cardano-wallet-api') ||
+    msg.includes('account changed') ||
+    msg.includes('not enabled') ||
+    msg.includes('connection lost') ||
+    msg.includes('disconnected') ||
+    msg.includes('wallet not available') ||
+    msg.includes('no account set')
+  )
+}
+
+const STALE_WALLET_HELP =
+  'Wallet connection expired (extension closed the CIP-30 channel). Click Disconnect, connect again, then check in immediately and approve the wallet popup — do not switch tabs while signing.'
+
+/** Re-open CIP-30 via Mesh (fresh API object). */
+export async function reenableWallet(walletName?: string | null): Promise<IWallet | null> {
+  const raw = (walletName || '').trim()
+  if (!raw) return null
+  const candidates = Array.from(
+    new Set([raw, raw.toLowerCase(), raw.replace(/\s+/g, ''), raw.toLowerCase().replace(/\s+/g, '')]),
+  )
+  for (const id of candidates) {
+    try {
+      const w = await BrowserWallet.enable(id)
+      if (w) return w
+    } catch {
+      /* try next id form */
+    }
+  }
+  return null
+}
+
+/** Ping wallet; if dead, re-enable by name. */
+export async function ensureLiveWallet(
+  wallet: IWallet,
+  walletName?: string | null,
+): Promise<IWallet> {
+  if (!wallet) throw new Error('Wallet not connected')
+  try {
+    const addr = await wallet.getChangeAddress()
+    if (addr) return wallet
+  } catch (err) {
+    if (!isStaleWalletError(err) && !walletName) throw mapSignError(err)
+  }
+  const revived = await reenableWallet(walletName)
+  if (revived) {
+    try {
+      await revived.getChangeAddress()
+      return revived
+    } catch {
+      /* fall through */
+    }
+  }
+  throw new Error(STALE_WALLET_HELP)
+}
+
 function mapBuildError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err)
   const lower = msg.toLowerCase()
+  if (isStaleWalletError(err)) {
+    return new Error(STALE_WALLET_HELP)
+  }
   if (lower.includes('utxo') || lower.includes('insufficient')) {
     return new Error(
       'Insufficient Preprod ADA. Fund your wallet from the Cardano faucet, then try again.',
@@ -199,15 +263,32 @@ function mapBuildError(err: unknown): Error {
 
 function mapSignError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err)
+  const lower = msg.toLowerCase()
+  if (isStaleWalletError(err)) {
+    return new Error(STALE_WALLET_HELP)
+  }
   if (
-    msg.toLowerCase().includes('declin') ||
-    msg.toLowerCase().includes('reject') ||
-    msg.toLowerCase().includes('cancel') ||
-    msg.toLowerCase().includes('user')
+    lower.includes('declin') ||
+    lower.includes('reject') ||
+    lower.includes('user declined') ||
+    lower.includes('user rejected') ||
+    lower.includes('canceled') ||
+    lower.includes('cancelled')
   ) {
     return new Error('Transaction was rejected in your wallet.')
   }
   return new Error(`Signing failed: ${msg}`)
+}
+
+function mapSubmitError(err: unknown): Error {
+  if (isStaleWalletError(err)) return new Error(STALE_WALLET_HELP)
+  const msg = err instanceof Error ? err.message : String(err)
+  return new Error(`Submission failed: ${msg}`)
+}
+
+export type WalletTxOpts = {
+  /** Mesh / extension name (Lace, eternl, …) so we can re-enable a dead channel */
+  walletName?: string | null
 }
 
 /**
@@ -216,41 +297,60 @@ function mapSignError(err: unknown): Error {
 export async function submitOnChainProof(
   wallet: IWallet,
   payload: OnChainProofPayload,
+  opts?: WalletTxOpts,
 ): Promise<{ txHash: string; walletAddress: string; metadata: ReturnType<typeof buildMetadata> }> {
   if (!wallet) throw new Error('Wallet not connected')
 
-  const address = await wallet.getChangeAddress()
-  if (!address) throw new Error('Could not read wallet address')
-
+  let active = await ensureLiveWallet(wallet, opts?.walletName)
   const metadata = buildMetadata(payload)
 
-  const tx = new Transaction({ initiator: wallet })
-    .sendLovelace(address, CARDANO.checkInLovelace)
-    .setMetadata(CARDANO.metadataLabel, metadata)
-
-  let unsignedTx: string
-  try {
-    unsignedTx = await tx.build()
-  } catch (err) {
-    throw mapBuildError(err)
+  const buildAndSign = async (w: IWallet) => {
+    const address = await w.getChangeAddress()
+    if (!address) throw new Error('Could not read wallet address')
+    const tx = new Transaction({ initiator: w })
+      .sendLovelace(address, CARDANO.checkInLovelace)
+      .setMetadata(CARDANO.metadataLabel, metadata)
+    let unsignedTx: string
+    try {
+      unsignedTx = await tx.build()
+    } catch (err) {
+      throw mapBuildError(err)
+    }
+    let signedTx: string
+    try {
+      signedTx = await w.signTx(unsignedTx)
+    } catch (err) {
+      throw err
+    }
+    let txHash: string
+    try {
+      txHash = await w.submitTx(signedTx)
+    } catch (err) {
+      throw mapSubmitError(err)
+    }
+    return { txHash, walletAddress: address, metadata }
   }
 
-  let signedTx: string
   try {
-    signedTx = await wallet.signTx(unsignedTx)
+    return await buildAndSign(active)
   } catch (err) {
-    throw mapSignError(err)
+    if (!isStaleWalletError(err)) {
+      if (err instanceof Error && (err.message.startsWith('Failed to build') || err.message.startsWith('Submission') || err.message === STALE_WALLET_HELP || err.message.startsWith('Transaction was rejected') || err.message.startsWith('Signing failed') || err.message.startsWith('Could not'))) {
+        throw err
+      }
+      throw mapSignError(err)
+    }
+    // One automatic reconnect + retry (Lace channel shutdown)
+    const revived = await reenableWallet(opts?.walletName)
+    if (!revived) throw new Error(STALE_WALLET_HELP)
+    active = revived
+    try {
+      return await buildAndSign(active)
+    } catch (err2) {
+      if (err2 instanceof Error && err2.message === STALE_WALLET_HELP) throw err2
+      throw mapSignError(err2)
+    }
   }
-
-  let txHash: string
-  try {
-    txHash = await wallet.submitTx(signedTx)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`Submission failed: ${msg}`)
-  }
-
-  return { txHash, walletAddress: address, metadata }
 }
 
 /**
@@ -262,6 +362,7 @@ export async function submitAdaPayment(
     toAddress: string
     adaAmount: number
     payload: AdaPaymentPayload
+    walletName?: string | null
   },
 ): Promise<{
   txHash: string
@@ -278,46 +379,63 @@ export async function submitAdaPayment(
     throw new Error('Recipient Cardano address is missing. Organizer/winner must save a wallet address first.')
   }
 
-  const fromAddress = await wallet.getChangeAddress()
-  if (!fromAddress) throw new Error('Could not read your wallet address')
-
+  let active = await ensureLiveWallet(wallet, opts.walletName)
   const lovelace = adaToLovelace(opts.adaAmount)
   const metadata = buildPaymentMetadata(opts.payload, opts.adaAmount)
 
-  const tx = new Transaction({ initiator: wallet })
-    .sendLovelace(toAddress, lovelace)
-    .setMetadata(CARDANO.metadataLabel, metadata)
-
-  let unsignedTx: string
-  try {
-    unsignedTx = await tx.build()
-  } catch (err) {
-    throw mapBuildError(err)
+  const buildAndSign = async (w: IWallet) => {
+    const fromAddress = await w.getChangeAddress()
+    if (!fromAddress) throw new Error('Could not read your wallet address')
+    const tx = new Transaction({ initiator: w })
+      .sendLovelace(toAddress, lovelace)
+      .setMetadata(CARDANO.metadataLabel, metadata)
+    let unsignedTx: string
+    try {
+      unsignedTx = await tx.build()
+    } catch (err) {
+      throw mapBuildError(err)
+    }
+    let signedTx: string
+    try {
+      signedTx = await w.signTx(unsignedTx)
+    } catch (err) {
+      throw err
+    }
+    let txHash: string
+    try {
+      txHash = await w.submitTx(signedTx)
+    } catch (err) {
+      throw mapSubmitError(err)
+    }
+    return {
+      txHash,
+      fromAddress,
+      toAddress,
+      adaAmount: opts.adaAmount,
+      lovelace,
+      metadata,
+      explorerUrl: explorerTxUrl(txHash),
+    }
   }
 
-  let signedTx: string
   try {
-    signedTx = await wallet.signTx(unsignedTx)
+    return await buildAndSign(active)
   } catch (err) {
-    throw mapSignError(err)
-  }
-
-  let txHash: string
-  try {
-    txHash = await wallet.submitTx(signedTx)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`Submission failed: ${msg}`)
-  }
-
-  return {
-    txHash,
-    fromAddress,
-    toAddress,
-    adaAmount: opts.adaAmount,
-    lovelace,
-    metadata,
-    explorerUrl: explorerTxUrl(txHash),
+    if (!isStaleWalletError(err)) {
+      if (err instanceof Error && (err.message.startsWith('Failed to build') || err.message.startsWith('Submission') || err.message === STALE_WALLET_HELP || err.message.startsWith('Transaction was rejected') || err.message.startsWith('Signing failed') || err.message.startsWith('Could not') || err.message.startsWith('Recipient'))) {
+        throw err
+      }
+      throw mapSignError(err)
+    }
+    const revived = await reenableWallet(opts.walletName)
+    if (!revived) throw new Error(STALE_WALLET_HELP)
+    active = revived
+    try {
+      return await buildAndSign(active)
+    } catch (err2) {
+      if (err2 instanceof Error && err2.message === STALE_WALLET_HELP) throw err2
+      throw mapSignError(err2)
+    }
   }
 }
 

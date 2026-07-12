@@ -44,7 +44,7 @@ function statusClasses(status: Registration['status']) {
 
 export default function ParticipantTickets() {
   const user = store.getCurrentUser()
-  const { connected, wallet } = useWallet()
+  const { connected, wallet, name: walletName } = useWallet()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
@@ -80,15 +80,19 @@ export default function ParticipantTickets() {
     setBusyId(reg.id)
     setError('')
     try {
-      const result = await submitOnChainProof(wallet, {
-        kind: 'attendance',
-        eventId: event.id,
-        eventTitle: event.title,
-        registrationCode: reg.registration_code || '',
-        role: 'participant',
-        participantId: reg.participant_id,
-        location: event.city || event.venue || '',
-      })
+      const result = await submitOnChainProof(
+        wallet,
+        {
+          kind: 'attendance',
+          eventId: event.id,
+          eventTitle: event.title,
+          registrationCode: reg.registration_code || '',
+          role: 'participant',
+          participantId: reg.participant_id,
+          location: event.city || event.venue || '',
+        },
+        { walletName },
+      )
       store.checkInRegistration(reg, {
         method: 'cardano',
         txHash: result.txHash,
