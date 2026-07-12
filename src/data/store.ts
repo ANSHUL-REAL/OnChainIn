@@ -821,6 +821,40 @@ export const store = {
     if (options?.handledById) {
       store.addVolunteerPoints(options.handledById, POINTS.checkInHandled, 'Check-in handled', reg.event_id, options.handledByName);
     }
+
+    // Auto-issue a certificate on check-in so participants can download immediately
+    // (organizer can still re-issue / manage from Certificates page).
+    try {
+      if (event) {
+        const already = store.getCertificates().find(
+          (c) => c.event_id === event.id && isRelatedProfileId(c.user_id, reg.participant_id),
+        );
+        if (!already) {
+          const person = store.getProfileById(reg.participant_id);
+          const cert = store.issueCertificate({
+            event,
+            userId: reg.participant_id,
+            userName: person?.full_name || reg.participant?.full_name || 'Participant',
+            role: 'Participant',
+            organizerName: store.getProfileById(event.organizer_id)?.full_name || 'OnChainIn',
+          });
+          store.createPassportRecord({
+            user_id: reg.participant_id,
+            event_id: event.id,
+            record_type: 'certificate',
+            title: `${event.title} Certificate`,
+            description: 'Certificate of Participation',
+            skills: event.category ? [event.category] : [],
+            hours: 0,
+            certificate_id: cert.certificate_code,
+            verified_at: new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      /* certificate is best-effort — check-in already succeeded */
+    }
+
     return attendance;
   },
 

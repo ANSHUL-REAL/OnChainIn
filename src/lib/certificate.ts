@@ -1,7 +1,6 @@
 import { qrToDataUrl } from '@/lib/qr'
 
 // Downloadable certificate PNG — clean layout; full tx hash only as tiny border microtext.
-// Full hash + explorer verification live on the public verify page.
 
 export interface CertificateData {
   participantName: string
@@ -10,7 +9,6 @@ export interface CertificateData {
   organizerName: string
   code: string
   role?: string
-  /** Cardano Preprod attendance transaction (stored in border microtext only) */
   txHash?: string
   explorerUrl?: string
   walletAddress?: string
@@ -20,14 +18,13 @@ export interface CertificatePngResult {
   blob: Blob
   fileName: string
   objectUrl: string
+  /** data:image/png;base64,... — best for mobile Safari download attr */
+  dataUrl: string
 }
 
-function loadImage(src: string, timeoutMs = 6000): Promise<HTMLImageElement> {
+function loadImageFromUrl(src: string, timeoutMs = 5000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    // Do NOT set crossOrigin for same-origin /logo.png — setting it without
-    // proper CORS can taint the canvas and break toBlob/toDataURL.
-    // data: URLs are always same-origin.
     const timer = window.setTimeout(() => {
       try {
         img.src = ''
@@ -48,6 +45,27 @@ function loadImage(src: string, timeoutMs = 6000): Promise<HTMLImageElement> {
   })
 }
 
+/** Fetch same-origin assets as blob URLs so the canvas never gets tainted. */
+async function loadLogoSafe(): Promise<HTMLImageElement | null> {
+  try {
+    const res = await fetch('/logo.png', { cache: 'force-cache' })
+    if (!res.ok) throw new Error('logo missing')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    try {
+      return await loadImageFromUrl(url, 4000)
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  } catch {
+    try {
+      return await loadImageFromUrl('/logo.png', 2500)
+    } catch {
+      return null
+    }
+  }
+}
+
 function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   if (ctx.measureText(text).width <= maxWidth) return text
   let t = text
@@ -65,7 +83,6 @@ export function safeCertFileName(code: string): string {
   return `certificate-${cleaned || 'download'}.png`
 }
 
-/** Draw very small hash text along the certificate border (not body content). */
 function drawBorderHash(ctx: CanvasRenderingContext2D, hash: string, W: number, H: number) {
   const micro = `tx ${hash}`
   ctx.save()
@@ -73,63 +90,74 @@ function drawBorderHash(ctx: CanvasRenderingContext2D, hash: string, W: number, 
   ctx.font = '8px "Courier New", monospace'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-
-  const y = H - 32
-  ctx.fillText(micro, W / 2, y)
-
+  ctx.fillText(micro, W / 2, H - 32)
   ctx.translate(32, H / 2)
   ctx.rotate(-Math.PI / 2)
   ctx.fillText(micro, 0, 0)
-
   ctx.restore()
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Could not read certificate image'))
+    reader.readAsDataURL(blob)
+  })
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    try {
-      canvas.toBlob(
-        (blob) => {
-          if (blob && blob.size > 0) {
-            resolve(blob)
-            return
-          }
-          // Fallback via data URL
-          try {
-            const dataUrl = canvas.toDataURL('image/png')
-            const parts = dataUrl.split(',')
-            const bin = atob(parts[1] || '')
-            const bytes = new Uint8Array(bin.length)
-            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-            const fallback = new Blob([bytes], { type: 'image/png' })
-            if (fallback.size > 0) resolve(fallback)
-            else reject(new Error('Could not export certificate image (empty PNG)'))
-          } catch (e) {
-            reject(
-              e instanceof Error
-                ? e
-                : new Error('Could not export certificate image (canvas blocked)'),
-            )
-          }
-        },
-        'image/png',
-        1,
-      )
-    } catch (e) {
-      reject(e instanceof Error ? e : new Error('Could not export certificate image'))
+    // Some browsers need a tick before toBlob after heavy drawing
+    const run = () => {
+      try {
+        if (typeof canvas.toBlob === 'function') {
+          canvas.toBlob(
+            (blob) => {
+              if (blob && blob.size > 0) {
+                resolve(blob)
+                return
+              }
+              tryDataUrl()
+            },
+            'image/png',
+            1,
+          )
+        } else {
+          tryDataUrl()
+        }
+      } catch {
+        tryDataUrl()
+      }
     }
+    const tryDataUrl = () => {
+      try {
+        const dataUrl = canvas.toDataURL('image/png')
+        const parts = dataUrl.split(',')
+        const bin = atob(parts[1] || '')
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+        const fallback = new Blob([bytes], { type: 'image/png' })
+        if (fallback.size > 0) resolve(fallback)
+        else reject(new Error('Could not export certificate PNG'))
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error('Could not export certificate PNG'))
+      }
+    }
+    window.setTimeout(run, 0)
   })
 }
 
-/** Paint certificate onto an off-screen canvas and return a PNG blob. */
+/** Paint certificate and return blob + URLs for download UI. */
 export async function generateCertificatePng(data: CertificateData): Promise<CertificatePngResult> {
   const W = 1000
   const H = 760
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) {
-    throw new Error('Your browser cannot draw certificates (canvas unavailable). Try Chrome or Edge.')
+    throw new Error('Canvas not supported. Open in Chrome or Edge to download certificates.')
   }
 
   ctx.fillStyle = '#FBF9F3'
@@ -158,17 +186,17 @@ export async function generateCertificatePng(data: CertificateData): Promise<Cer
   }
 
   let logoDrawn = false
-  try {
-    // Relative same-origin path (no crossOrigin) — keeps canvas exportable
-    const logo = await loadImage(`/logo.png`, 4000)
+  const logo = await loadLogoSafe()
+  if (logo) {
     const logoSize = 72
     ctx.drawImage(logo, W / 2 - logoSize / 2, 58, logoSize, logoSize)
     logoDrawn = true
-  } catch {
-    /* logo optional */
   }
 
   const headerY = logoDrawn ? 150 : 100
+  const name = data.participantName || 'Participant'
+  const eventName = data.eventName || 'Event'
+  const code = data.code || 'CERT-UNKNOWN'
 
   ctx.fillStyle = '#6A7D1A'
   ctx.font = 'bold 13px Arial, sans-serif'
@@ -192,7 +220,7 @@ export async function generateCertificatePng(data: CertificateData): Promise<Cer
 
   ctx.fillStyle = '#52670F'
   ctx.font = 'bold 40px Georgia, serif'
-  ctx.fillText(fitText(ctx, data.participantName || 'Participant', W - 140), W / 2, headerY + 162)
+  ctx.fillText(fitText(ctx, name, W - 140), W / 2, headerY + 162)
 
   ctx.strokeStyle = '#C9D4A8'
   ctx.lineWidth = 2
@@ -207,15 +235,15 @@ export async function generateCertificatePng(data: CertificateData): Promise<Cer
 
   ctx.fillStyle = '#14150F'
   ctx.font = 'bold 24px Georgia, serif'
-  ctx.fillText(fitText(ctx, data.eventName || 'Event', W - 140), W / 2, headerY + 252)
+  ctx.fillText(fitText(ctx, eventName, W - 140), W / 2, headerY + 252)
 
   ctx.fillStyle = '#5E6256'
   ctx.font = '15px Arial, sans-serif'
-  ctx.fillText(`Event date: ${data.date}`, W / 2, headerY + 288)
+  ctx.fillText(`Event date: ${data.date || '—'}`, W / 2, headerY + 288)
   ctx.fillText(`Organized by ${data.organizerName || 'OnChainIn'}`, W / 2, headerY + 312)
 
-  const noteY = headerY + 360
   if (data.txHash) {
+    const noteY = headerY + 360
     const noteW = 420
     const noteH = 44
     const noteX = (W - noteW) / 2
@@ -249,21 +277,21 @@ export async function generateCertificatePng(data: CertificateData): Promise<Cer
 
   ctx.fillStyle = '#52670F'
   ctx.font = '13px "Courier New", monospace'
-  ctx.fillText(data.code, W / 2, footY)
+  ctx.fillText(code, W / 2, footY)
   ctx.fillStyle = '#9aa08f'
   ctx.font = '11px Arial, sans-serif'
-  ctx.fillText(`Verify at /verify/certificate/${data.code}`, W / 2, footY + 22)
+  ctx.fillText(`Verify at /verify/certificate/${code}`, W / 2, footY + 22)
 
   try {
-    const verifyUrl = `${window.location.origin}/verify/certificate/${encodeURIComponent(data.code)}`
+    const verifyUrl = `${window.location.origin}/verify/certificate/${encodeURIComponent(code)}`
     const qr = await qrToDataUrl(verifyUrl, 120)
-    const qrImg = await loadImage(qr, 4000)
+    const qrImg = await loadImageFromUrl(qr, 4000)
     ctx.drawImage(qrImg, W - 250, footY - 30, 96, 96)
     ctx.fillStyle = '#5E6256'
     ctx.font = '11px Arial, sans-serif'
     ctx.fillText('Scan to verify', W - 202, footY + 82)
   } catch {
-    /* optional */
+    /* QR optional */
   }
 
   if (data.txHash) {
@@ -271,70 +299,70 @@ export async function generateCertificatePng(data: CertificateData): Promise<Cer
   }
 
   const blob = await canvasToBlob(canvas)
-  const fileName = safeCertFileName(data.code)
+  const fileName = safeCertFileName(code)
   const objectUrl = URL.createObjectURL(blob)
-  return { blob, fileName, objectUrl }
+  const dataUrl = await blobToDataUrl(blob)
+  return { blob, fileName, objectUrl, dataUrl }
 }
 
 /**
- * Try every browser download path. After async work, some browsers block silent
- * a.click() — File System Access API and a visible <a download> still work.
+ * Force a browser download. Uses several strategies because mobile Safari and
+ * desktop Chrome behave differently after async canvas work.
  */
-export async function tryAutoDownload(blob: Blob, fileName: string): Promise<'picker' | 'anchor' | 'none'> {
-  // 1) Chrome / Edge: native save picker (reliable after await)
-  const w = window as Window & {
-    showSaveFilePicker?: (opts: unknown) => Promise<{
-      createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }>
-    }>
-  }
-  if (typeof w.showSaveFilePicker === 'function') {
-    try {
-      const handle = await w.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [
-          {
-            description: 'PNG image',
-            accept: { 'image/png': ['.png'] },
-          },
-        ],
-      })
-      const writable = await handle.createWritable()
-      await writable.write(blob)
-      await writable.close()
-      return 'picker'
-    } catch (err) {
-      // User cancelled picker — treat as handled (don't force another download)
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('cancel')) {
-        return 'none'
-      }
-      /* fall through to anchor download */
+export function forceDownloadFile(
+  blob: Blob,
+  fileName: string,
+  dataUrl?: string,
+): 'ok' | 'opened' | 'fail' {
+  try {
+    const nav = window.navigator as Navigator & {
+      msSaveOrOpenBlob?: (b: Blob, name?: string) => boolean
     }
+    if (typeof nav.msSaveOrOpenBlob === 'function') {
+      nav.msSaveOrOpenBlob(blob, fileName)
+      return 'ok'
+    }
+  } catch {
+    /* continue */
   }
 
-  // 2) Classic blob + <a download>
+  // Prefer data URL for download attribute (works better on many mobile browsers)
+  const href = dataUrl && dataUrl.startsWith('data:') ? dataUrl : URL.createObjectURL(blob)
+  const createdObjectUrl = href.startsWith('blob:')
+
   try {
-    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
+    link.href = href
     link.download = fileName
     link.rel = 'noopener'
-    link.style.display = 'none'
+    link.type = 'image/png'
+    link.style.position = 'fixed'
+    link.style.left = '-9999px'
     document.body.appendChild(link)
     link.click()
     window.setTimeout(() => {
       link.remove()
-      URL.revokeObjectURL(url)
-    }, 4000)
-    return 'anchor'
+      if (createdObjectUrl) URL.revokeObjectURL(href)
+    }, 5000)
+    return 'ok'
   } catch {
-    return 'none'
+    try {
+      const opened = window.open(href, '_blank', 'noopener,noreferrer')
+      if (opened) return 'opened'
+    } catch {
+      /* ignore */
+    }
+    if (createdObjectUrl) URL.revokeObjectURL(href)
+    return 'fail'
   }
 }
 
-/** Generate PNG and attempt download. Always returns objectUrl for UI fallback save button. */
+/** Generate PNG and try download. Always returns URLs for the save modal. */
 export async function downloadCertificate(data: CertificateData): Promise<CertificatePngResult> {
+  if (!data.code?.trim()) {
+    throw new Error('Certificate code is missing. Ask the organizer to re-issue the certificate.')
+  }
   const result = await generateCertificatePng(data)
-  await tryAutoDownload(result.blob, result.fileName)
+  forceDownloadFile(result.blob, result.fileName, result.dataUrl)
   return result
 }
