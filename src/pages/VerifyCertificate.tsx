@@ -16,6 +16,7 @@ import store from '@/data/store'
 import { downloadCertificate } from '@/lib/certificate'
 import { explorerTxUrl, truncateMiddle } from '@/lib/cardano'
 import { isFreeEvent } from '@/lib/eventLifecycle'
+import { ChainTxStatus } from '@/components/ChainTxStatus'
 
 export default function VerifyCertificate() {
   const params = useParams<{ certificateId?: string; id?: string }>()
@@ -147,7 +148,7 @@ export default function VerifyCertificate() {
                         ) : txHash ? (
                           <>
                             <p className="mt-1.5 text-sm font-semibold text-[#14150F]">
-                              On-chain check-in verified
+                              Attendance tx bound to this certificate
                             </p>
                             <p className="mt-1.5 break-all font-mono text-[11px] text-[#52670F]">
                               {txHash}
@@ -157,6 +158,9 @@ export default function VerifyCertificate() {
                                 Wallet: {walletAddress}
                               </p>
                             )}
+                            <div className="mt-3">
+                              <ChainTxStatus txHash={txHash} />
+                            </div>
                             <a
                               href={explorerUrl}
                               target="_blank"
@@ -167,7 +171,7 @@ export default function VerifyCertificate() {
                               <ExternalLink className="h-3 w-3" />
                             </a>
                             <p className="mt-2 text-[10px] text-[#5E6256]">
-                              Ref: {truncateMiddle(txHash, 12, 12)} · Preprod Cardano
+                              Ref: {truncateMiddle(txHash, 12, 12)} · Preprod Cardano · live check via Blockfrost
                             </p>
                           </>
                         ) : (

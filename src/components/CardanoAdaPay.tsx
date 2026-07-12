@@ -9,6 +9,7 @@ import {
   type AdaPaymentKind,
   type AdaPaymentPayload,
 } from '@/lib/cardano'
+import { ChainTxStatus } from '@/components/ChainTxStatus'
 
 type Props = {
   label: string
@@ -104,18 +105,21 @@ export function CardanoAdaPay({
       </button>
       {error && <p className="mt-2 text-[11px] font-semibold text-red-600">{error}</p>}
       {lastTx && (
-        <a
-          href={explorerTxUrl(lastTx)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[#7C3AED]"
-        >
-          View tx on explorer <ExternalLink className="h-3 w-3" />
-        </a>
+        <div className="mt-2 space-y-2">
+          <a
+            href={explorerTxUrl(lastTx)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#7C3AED]"
+          >
+            View tx on explorer <ExternalLink className="h-3 w-3" />
+          </a>
+          <ChainTxStatus txHash={lastTx} poll compact />
+        </div>
       )}
       <p className="mt-2 flex items-start gap-1 text-[10px] text-[#5E6256]">
         <Wallet className="mt-0.5 h-3 w-3 shrink-0" />
-        Network: {CARDANO.network}. Fund Preprod ADA via faucet if needed.
+        Network: {CARDANO.network}. Fund Preprod ADA via faucet if needed. Confirmation via Blockfrost.
       </p>
     </div>
   )

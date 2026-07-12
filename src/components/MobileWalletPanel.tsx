@@ -10,7 +10,8 @@ import {
   Link2,
 } from 'lucide-react'
 import store from '@/data/store'
-import { explorerAddressUrl, truncateMiddle } from '@/lib/cardano'
+import { explorerAddressUrl, formatAda, truncateMiddle } from '@/lib/cardano'
+import { getAddressBalance, isBlockfrostConfigured } from '@/lib/blockfrost'
 
 const FAUCET_URL = 'https://docs.cardano.org/cardano-testnets/tools/faucet'
 
@@ -56,10 +57,42 @@ export function MobileWalletPanel({ forceMobileStyle }: Props) {
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [pageUrl, setPageUrl] = useState('')
+  const [balanceAda, setBalanceAda] = useState<number | null>(null)
+  const [balanceMsg, setBalanceMsg] = useState('')
 
   useEffect(() => {
     setPageUrl(window.location.href)
   }, [])
+
+  useEffect(() => {
+    const addr = (address || user?.cardano_address || '').trim()
+    if (!addr || addr.length < 20 || !isBlockfrostConfigured()) {
+      setBalanceAda(null)
+      setBalanceMsg(
+        isBlockfrostConfigured() ? '' : 'Blockfrost not set — balance check unavailable',
+      )
+      return
+    }
+    let cancelled = false
+    setBalanceMsg('Checking balance…')
+    void getAddressBalance(addr).then((b) => {
+      if (cancelled) return
+      if (!b) {
+        setBalanceAda(null)
+        setBalanceMsg('Address not found on Preprod yet (fund via faucet).')
+        return
+      }
+      setBalanceAda(b.ada)
+      setBalanceMsg(
+        b.ada >= 2
+          ? 'Enough ADA for check-in (~1 ADA self-send + fee).'
+          : 'Low balance — request Preprod ADA from the faucet.',
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [address, user?.cardano_address])
 
   const siteOrigin = useMemo(() => {
     if (typeof window === 'undefined') return 'https://onchainin.vercel.app'
@@ -126,6 +159,14 @@ export function MobileWalletPanel({ forceMobileStyle }: Props) {
             <p className="mt-2 font-mono text-[10px] text-[#5E6256]">
               Saved: {truncateMiddle(user.cardano_address, 10, 8)}
             </p>
+          )}
+          {balanceAda !== null && (
+            <p className="mt-2 text-xs font-bold text-[#7C3AED]">
+              Balance: {formatAda(balanceAda)} (Blockfrost)
+            </p>
+          )}
+          {balanceMsg && (
+            <p className="mt-1 text-[10px] leading-4 text-[#5E6256]">{balanceMsg}</p>
           )}
         </div>
 

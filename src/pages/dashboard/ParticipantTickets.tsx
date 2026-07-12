@@ -21,6 +21,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { explorerTxUrl, submitOnChainProof, truncateMiddle } from '@/lib/cardano'
 import { getCheckInWindow } from '@/lib/eventLifecycle'
 import type { Registration } from '@/types'
+import { ChainTxStatus } from '@/components/ChainTxStatus'
 
 const statusOrder: Registration['status'][] = ['pending', 'approved', 'rejected', 'attended', 'cancelled']
 
@@ -46,6 +47,8 @@ export default function ParticipantTickets() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
+  /** Poll Blockfrost for the latest check-in tx */
+  const [pendingConfirmTx, setPendingConfirmTx] = useState<string | null>(null)
   void version
   const registrations = user ? store.getParticipantRegistrations(user.id) : []
   const events = store.getEvents()
@@ -92,6 +95,7 @@ export default function ParticipantTickets() {
         explorerUrl: explorerTxUrl(result.txHash),
       })
       if (user) store.updateProfile(user.id, { cardano_address: result.walletAddress })
+      setPendingConfirmTx(result.txHash)
       setVersion((v) => v + 1)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -118,6 +122,13 @@ export default function ParticipantTickets() {
       <div className="mb-6">
         <MobileWalletPanel />
       </div>
+
+      {pendingConfirmTx && (
+        <div className="mb-5">
+          <p className="mb-2 text-xs font-bold text-[#7C3AED]">Latest check-in — confirming on chain…</p>
+          <ChainTxStatus txHash={pendingConfirmTx} poll />
+        </div>
+      )}
 
       {mobile && (
         <div className="mb-5 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4">
@@ -255,15 +266,22 @@ export default function ParticipantTickets() {
                           {reg.status === 'attended' && (
                             <>
                               {att?.tx_hash ? (
-                                <a
-                                  href={att.explorer_url || explorerTxUrl(att.tx_hash)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-amber-800"
-                                >
-                                  On-chain {truncateMiddle(att.tx_hash)}{' '}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
+                                <div className="mt-3 space-y-2">
+                                  <a
+                                    href={att.explorer_url || explorerTxUrl(att.tx_hash)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800"
+                                  >
+                                    On-chain {truncateMiddle(att.tx_hash)}{' '}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                  <ChainTxStatus
+                                    txHash={att.tx_hash}
+                                    poll={pendingConfirmTx === att.tx_hash}
+                                    compact
+                                  />
+                                </div>
                               ) : null}
                               <Link
                                 to={`/proof/participant/${reg.id}`}
