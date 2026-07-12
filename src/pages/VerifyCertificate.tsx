@@ -49,20 +49,20 @@ export default function VerifyCertificate() {
             <div className="pointer-events-none absolute bottom-6 left-6 h-8 w-8 border-b-2 border-l-2 border-[#52670F]/40" />
             <div className="pointer-events-none absolute bottom-6 right-6 h-8 w-8 border-b-2 border-r-2 border-[#52670F]/40" />
 
-            <div className="relative px-6 py-10 sm:px-12 sm:py-12 text-center">
-              {/* Brand mark */}
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center bg-transparent">
+            <div className="relative px-6 py-10 sm:px-12 sm:py-14 text-center">
+              {/* Brand mark — clean, no double frames fighting text */}
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center">
                 <img
                   src="/logo.png"
                   alt="OnChainIn"
-                  className="h-12 w-12 object-contain bg-transparent"
+                  className="h-11 w-11 object-contain"
                   draggable={false}
                 />
               </div>
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#6A7D1A]">
                 OnChainIn
               </p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9AA08D]">
+              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9AA08D]">
                 {txHash
                   ? 'Cardano-verified attendance'
                   : isFreeEvent(event)
@@ -70,48 +70,48 @@ export default function VerifyCertificate() {
                     : 'Official event credential'}
               </p>
 
-              <h1 className="mt-6 font-serif text-2xl font-bold tracking-tight text-[#14150F] sm:text-3xl">
+              <h1 className="mt-7 font-serif text-[1.75rem] font-bold leading-tight tracking-tight text-[#14150F] sm:text-4xl">
                 Certificate of Achievement
               </h1>
 
               {cert ? (
                 <>
-                  <p className="mt-6 text-sm text-[#5E6256]">
+                  <p className="mt-7 text-sm text-[#5E6256]">
                     This certificate is proudly presented to
                   </p>
-                  <p className="mt-3 font-serif text-3xl font-bold text-[#52670F] sm:text-4xl">
+                  <p className="mt-3 font-serif text-3xl font-bold leading-tight text-[#52670F] sm:text-[2.5rem]">
                     {user?.full_name || 'Participant'}
                   </p>
-                  <div className="mx-auto mt-4 h-px w-40 bg-[#C9D4A8]" />
+                  <div className="mx-auto mt-5 h-px w-36 bg-[#C9D4A8]" />
 
                   <p className="mt-5 text-sm text-[#5E6256]">
                     for {cert.role || 'participation'} in
                   </p>
-                  <p className="mt-2 text-xl font-bold text-[#14150F] sm:text-2xl">
+                  <p className="mt-2 text-xl font-bold leading-snug text-[#14150F] sm:text-2xl">
                     {event?.title || 'Event'}
                   </p>
 
-                  <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[#5E6256]">
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#5E6256]">
                     <span className="inline-flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-[#52670F]" />
+                      <Calendar className="h-3.5 w-3.5 shrink-0 text-[#52670F]" />
                       {event?.date || new Date(cert.issued_at).toLocaleDateString()}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-[#52670F]" />
+                      <Building2 className="h-3.5 w-3.5 shrink-0 text-[#52670F]" />
                       {organizer?.full_name || 'OnChainIn'}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
-                      <Award className="h-3.5 w-3.5 text-[#52670F]" />
-                      {cert.role}
+                      <Award className="h-3.5 w-3.5 shrink-0 text-[#52670F]" />
+                      {cert.role || 'Participant'}
                     </span>
                   </div>
 
-                  {/* Cardano strip */}
+                  {/* Single verification card — no stacked duplicate badges */}
                   <div
-                    className={`mt-8 rounded-2xl border px-4 py-4 text-left ${
+                    className={`mt-8 rounded-2xl border px-5 py-4 text-left ${
                       txHash
-                        ? 'border-emerald-200 bg-emerald-50/90'
-                        : 'border-[#DCE8BE] bg-white/70'
+                        ? 'border-emerald-200/90 bg-emerald-50/80'
+                        : 'border-[#DCE8BE] bg-white/80'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -122,44 +122,47 @@ export default function VerifyCertificate() {
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#52670F]">
-                          {isFreeEvent(event) ? 'Verification status' : 'Cardano attendance proof'}
+                          {isFreeEvent(event) && !txHash
+                            ? 'Verification status'
+                            : txHash
+                              ? 'Cardano attendance proof'
+                              : 'Verification status'}
                         </p>
-                        {isFreeEvent(event) ? (
-                          <p className="mt-1.5 text-sm text-[#5E6256]">
-                            This certificate is from a <strong>Free event</strong>. It is recorded in
-                            OnChainIn only — there is no Cardano transaction to audit on an explorer.
-                          </p>
-                        ) : txHash ? (
+                        {txHash ? (
                           <>
                             <p className="mt-1.5 text-sm font-semibold text-[#14150F]">
-                              Attendance tx bound to this certificate
+                              Attendance transaction bound to this certificate
                             </p>
-                            <p className="mt-1.5 break-all font-mono text-[11px] text-[#52670F]">
+                            <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-[#52670F]">
                               {txHash}
                             </p>
                             {walletAddress && (
                               <p className="mt-1 break-all font-mono text-[10px] text-[#5E6256]">
-                                Wallet: {walletAddress}
+                                Wallet: {truncateMiddle(walletAddress, 14, 10)}
                               </p>
                             )}
                             <div className="mt-3">
                               <ChainTxStatus txHash={txHash} />
                             </div>
-                            <a
-                              href={explorerUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#52670F] px-3.5 py-1.5 text-[11px] font-black text-white"
-                            >
-                              View on explorer
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                            <p className="mt-2 text-[10px] text-[#5E6256]">
-                              Ref: {truncateMiddle(txHash, 12, 12)} · Preprod Cardano · live check via Blockfrost
-                            </p>
+                            {explorerUrl && (
+                              <a
+                                href={explorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#52670F] px-3.5 py-1.5 text-[11px] font-black text-white hover:bg-[#3f5010]"
+                              >
+                                View on explorer
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
                           </>
+                        ) : isFreeEvent(event) ? (
+                          <p className="mt-1.5 text-sm leading-relaxed text-[#5E6256]">
+                            This certificate is from a <strong>Free event</strong>. It is recorded in
+                            OnChainIn only — there is no Cardano transaction to audit on an explorer.
+                          </p>
                         ) : (
-                          <p className="mt-1.5 text-sm text-[#5E6256]">
+                          <p className="mt-1.5 text-sm leading-relaxed text-[#5E6256]">
                             Valid in OnChainIn. No Cardano tx bound (check-in may have been QR/manual
                             only).
                           </p>
@@ -169,17 +172,17 @@ export default function VerifyCertificate() {
                   </div>
 
                   <div className="mt-8 flex flex-col items-center gap-1 border-t border-[#DCE8BE]/80 pt-6">
-                    <p className="font-mono text-xs font-semibold text-[#52670F]">
+                    <p className="font-mono text-xs font-semibold tracking-wide text-[#52670F]">
                       {cert.certificate_code}
                     </p>
                     <p className="text-[11px] text-[#9AA08D]">Certificate ID · scan or share to verify</p>
                   </div>
 
-                  {cert && event && (
-                    <div className="mt-6">
+                  {event && (
+                    <div className="mt-6 flex flex-col items-center gap-2">
                       <CertificateDownloadButton
                         label="Download certificate"
-                        className="gold-btn inline-flex items-center gap-2"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7C3AED] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#6D28D9]"
                         data={{
                           participantName: user?.full_name || 'Participant',
                           eventName: event.title,
@@ -192,13 +195,10 @@ export default function VerifyCertificate() {
                           walletAddress,
                         }}
                       />
+                      <p className="max-w-sm text-[11px] leading-relaxed text-[#9AA08D]">
+                        Downloads a clean PNG. Full tx proof stays on this verify page.
+                      </p>
                     </div>
-                  )}
-                  {txHash && (
-                    <p className="mt-2 text-[11px] text-[#9AA08D]">
-                      Full Cardano tx hash is shown above for verification. The PNG keeps only a tiny
-                      border reference — scan the QR to open this page.
-                    </p>
                   )}
                 </>
               ) : (
