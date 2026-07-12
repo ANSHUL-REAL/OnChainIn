@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { explorerTxUrl, formatAda } from '@/lib/cardano'
+import { isCardanoEvent, isFreeEvent } from '@/lib/eventLifecycle'
 
 const PLACE_PRESETS = [
   { place: 1, label: '1st Prize', share: 0.5 },
@@ -124,6 +125,26 @@ export default function EventWinners() {
     }
   }
 
+  if (isFreeEvent(event)) {
+    return (
+      <DashboardLayout title="Winners & prizes">
+        <Link
+          to={`/dashboard/organizer/events/${event.id}`}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-[#7C3AED]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to event
+        </Link>
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+          <p className="text-sm font-bold text-emerald-900">This is a Free event</p>
+          <p className="mt-2 text-sm leading-6 text-emerald-900/80">
+            Free events do not use ADA prize money or Cardano payouts. Switch the event to{' '}
+            <strong>Cardano (ADA)</strong> under Event manage if you want on-chain prizes.
+          </p>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout title="Winners & prize money (ADA)">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -139,6 +160,9 @@ export default function EventWinners() {
             Prizes are paid <strong>only in ADA</strong> on Cardano. Connect your organizer wallet and
             send to the winner’s receive address.
           </p>
+          {isCardanoEvent(event) && (
+            <p className="mt-1 text-[11px] font-semibold text-[#7C3AED]">Mode: Cardano (ADA) event</p>
+          )}
         </div>
       </div>
 

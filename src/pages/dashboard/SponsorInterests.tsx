@@ -5,6 +5,7 @@ import { DashboardLayout } from '@/components/DashboardLayout'
 import { CardanoAdaPay } from '@/components/CardanoAdaPay'
 import store from '@/data/store'
 import { explorerTxUrl, formatAda, truncateMiddle } from '@/lib/cardano'
+import { isCardanoEvent } from '@/lib/eventLifecycle'
 
 export default function SponsorInterests() {
   const user = store.getCurrentUser()
@@ -30,7 +31,9 @@ export default function SponsorInterests() {
             const pkgAda = interest.package?.amount
             const defaultAda = interest.ada_amount || pkgAda || 5
             const adaInput = adaById[interest.id] ?? String(defaultAda)
+            const cardano = isCardanoEvent(event)
             const canPay =
+              cardano &&
               (interest.status === 'confirmed' || interest.status === 'contacted') &&
               !interest.tx_hash &&
               Boolean(organizerAddr)
@@ -131,13 +134,19 @@ export default function SponsorInterests() {
                       </div>
                     )}
 
-                    {(interest.status === 'new' || interest.status === 'rejected') && !interest.tx_hash && (
+                    {event && !cardano && (
+                      <p className="mt-3 text-xs font-semibold text-emerald-800">
+                        Free event — no ADA payment. Interest is tracked off-chain only.
+                      </p>
+                    )}
+
+                    {cardano && (interest.status === 'new' || interest.status === 'rejected') && !interest.tx_hash && (
                       <p className="mt-3 text-xs text-[#5E6256]">
                         Waiting for organizer approval before on-chain ADA payment unlocks.
                       </p>
                     )}
 
-                    {interest.status === 'confirmed' && !organizerAddr && !interest.tx_hash && (
+                    {cardano && interest.status === 'confirmed' && !organizerAddr && !interest.tx_hash && (
                       <p className="mt-3 text-xs font-semibold text-amber-800">
                         Organizer has not saved a Cardano receive address yet.
                       </p>

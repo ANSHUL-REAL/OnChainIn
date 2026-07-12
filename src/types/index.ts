@@ -77,6 +77,12 @@ export interface VolunteerPayout {
   created_at: string;
 }
 
+/**
+ * cardano = ADA fees, prizes, sponsorship, on-chain check-in/certs
+ * free = no ADA payments, no prize pool, certificates not chain-verifiable
+ */
+export type EventMode = 'cardano' | 'free';
+
 export interface Event {
   id: string;
   organizer_id: string;
@@ -92,9 +98,14 @@ export interface Event {
   poster_url?: string | null;
   max_participants: number;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
-  /** Participation fee in ADA (0 or omit = free). Paid on-chain to organizer. */
+  /**
+   * Event economics / trust mode.
+   * Defaults: if missing, treated as 'cardano' when fee/pool > 0, else 'free'.
+   */
+  event_mode?: EventMode;
+  /** Participation fee in ADA (cardano mode only). */
   participation_fee_ada?: number;
-  /** Suggested prize pool in ADA (organizer tracks winners separately). */
+  /** Prize pool in ADA (cardano mode only). */
   prize_pool_ada?: number;
   created_at: string;
 }

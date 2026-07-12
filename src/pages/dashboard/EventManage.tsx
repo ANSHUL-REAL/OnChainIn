@@ -6,9 +6,9 @@ import { EventLocationMap } from '@/components/EventLocationMap';
 import { EventPoster } from '@/components/EventPoster';
 import store from '@/data/store';
 import { createLocalPosterDataUrl, uploadEventPoster } from '@/lib/eventPosterUpload';
-import { eventStatusBadgeClass, getEventDisplayStatus } from '@/lib/eventLifecycle';
-import { Users, QrCode, UserCheck, Award, Handshake, Wallet, ArrowRight, Calendar, MapPin, FileText, Plus, Trash2, ImagePlus, X, Trophy, Blocks } from 'lucide-react';
-import type { EventFormField } from '@/types';
+import { eventStatusBadgeClass, getEventDisplayStatus, getEventMode, isCardanoEvent } from '@/lib/eventLifecycle';
+import { Users, QrCode, UserCheck, Award, Handshake, Wallet, ArrowRight, Calendar, MapPin, FileText, Plus, Trash2, ImagePlus, X, Trophy, Blocks, Sparkles } from 'lucide-react';
+import type { EventFormField, EventMode } from '@/types';
 import { truncateMiddle } from '@/lib/cardano';
 
 type EditableField = Omit<EventFormField, 'id' | 'event_id' | 'created_at'>;
@@ -23,6 +23,7 @@ export default function EventManage() {
   const [posterSaving, setPosterSaving] = useState(false);
   const [posterError, setPosterError] = useState('');
   const [posterSuccess, setPosterSuccess] = useState('');
+  const [eventMode, setEventMode] = useState<EventMode>(getEventMode(event));
   const [cardanoAddress, setCardanoAddress] = useState(organizer?.cardano_address || '');
   const [feeAda, setFeeAda] = useState(String(event?.participation_fee_ada ?? 0));
   const [poolAda, setPoolAda] = useState(String(event?.prize_pool_ada ?? store.getPrizePool(id || '')?.total_amount ?? 0));
@@ -143,24 +144,36 @@ export default function EventManage() {
     setWalletErr('');
     setWalletMsg('');
     if (!organizer) return;
-    const addr = cardanoAddress.trim();
-    if (addr.length < 20) {
-      setWalletErr('Enter a valid Cardano receive address (addr_test1… on Preprod).');
-      return;
+    if (eventMode === 'cardano') {
+      const addr = cardanoAddress.trim();
+      if (addr.length < 20) {
+        setWalletErr('Cardano mode needs a receive address (addr_test1…), or switch to Free event.');
+        return;
+      }
+      store.updateProfile(organizer.id, { cardano_address: addr });
+      const fee = Math.max(0, parseFloat(feeAda) || 0);
+      const pool = Math.max(0, parseFloat(poolAda) || 0);
+      store.updateEvent(event.id, {
+        event_mode: 'cardano',
+        participation_fee_ada: fee,
+        prize_pool_ada: pool,
+      });
+      if (pool > 0) store.setPrizePool(event.id, pool, 'ADA', 'Prize pool (ADA)');
+      setWalletMsg('Cardano mode saved. Sponsors can pay ADA after approval; prizes & fees use this wallet.');
+    } else {
+      store.updateEvent(event.id, {
+        event_mode: 'free',
+        participation_fee_ada: 0,
+        prize_pool_ada: 0,
+      });
+      store.setPrizePool(event.id, 0, 'ADA', 'Free event — no prize pool');
+      setWalletMsg('Free event mode saved. No ADA fees, prizes, or on-chain certificate verification.');
     }
-    store.updateProfile(organizer.id, { cardano_address: addr });
-    const fee = Math.max(0, parseFloat(feeAda) || 0);
-    const pool = Math.max(0, parseFloat(poolAda) || 0);
-    store.updateEvent(event.id, {
-      participation_fee_ada: fee,
-      prize_pool_ada: pool,
-    });
-    if (pool > 0) store.setPrizePool(event.id, pool, 'ADA', 'Prize pool (ADA)');
-    setWalletMsg('Cardano wallet + fee settings saved. Sponsors can pay ADA to this address after you approve them.');
     setVersion((v) => v + 1);
   };
 
   const savedAddr = store.getOrganizerCardanoAddress(event.id) || organizer?.cardano_address;
+  const cardanoMode = isCardanoEvent({ ...event, event_mode: eventMode });
 
   return (
     <DashboardLayout title={event.title}>
@@ -179,60 +192,94 @@ export default function EventManage() {
       </div>
 
       <div className="event-manage-panel mb-8 rounded-xl border border-[#DDD6FE] bg-[#F5F3FF] p-5">
-        <div className="flex items-start gap-3 mb-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDE9FE] text-[#7C3AED]">
-            <Blocks className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-sm font-black text-[#14150F]">Cardano receive address</p>
-            <p className="mt-1 text-xs leading-5 text-[#5E6256]">
-              This is your public receive address (not a private key). Sponsors send ADA here after you approve their interest.
-              Participants pay fees here too.
-            </p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C3AED] mb-3">Event type</p>
+        <div className="grid gap-3 sm:grid-cols-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setEventMode('cardano')}
+            className={`rounded-xl border p-3 text-left ${
+              eventMode === 'cardano' ? 'border-[#7C3AED] bg-white ring-2 ring-[#7C3AED]/25' : 'border-[#E7E1D2] bg-white/70'
+            }`}
+          >
+            <Blocks className="h-5 w-5 text-[#7C3AED] mb-1" />
+            <p className="text-sm font-bold text-[#14150F]">Cardano (ADA)</p>
+            <p className="text-[11px] text-[#5E6256]">Fees, prizes, sponsor ADA, on-chain cert proof</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEventMode('free')}
+            className={`rounded-xl border p-3 text-left ${
+              eventMode === 'free' ? 'border-emerald-500 bg-white ring-2 ring-emerald-400/30' : 'border-[#E7E1D2] bg-white/70'
+            }`}
+          >
+            <Sparkles className="h-5 w-5 text-emerald-600 mb-1" />
+            <p className="text-sm font-bold text-[#14150F]">Free event</p>
+            <p className="text-[11px] text-[#5E6256]">No ADA / no prizes · certs not chain-verified</p>
+          </button>
+        </div>
+
+        {cardanoMode ? (
+          <>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDE9FE] text-[#7C3AED]">
+                <Blocks className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-black text-[#14150F]">Cardano receive address</p>
+                <p className="mt-1 text-xs leading-5 text-[#5E6256]">
+                  Public address only (not a private key). Sponsors & fee payers send ADA here after approval.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Wallet address (addr_test1…)</span>
+                <input
+                  value={cardanoAddress}
+                  onChange={(e) => setCardanoAddress(e.target.value)}
+                  className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 font-mono text-xs text-[#14150F]"
+                  placeholder="addr_test1qz…"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Participation fee (ADA)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={feeAda}
+                  onChange={(e) => setFeeAda(e.target.value)}
+                  className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Prize pool (ADA)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={poolAda}
+                  onChange={(e) => setPoolAda(e.target.value)}
+                  className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 text-sm"
+                />
+              </label>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs leading-5 text-emerald-900">
+            Free mode: no ADA sponsorship payments, no prize distribution, and certificates stay app-issued
+            without blockchain verification. Registrations, QR, and volunteers still work.
           </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Wallet address (addr_test1…)</span>
-            <input
-              value={cardanoAddress}
-              onChange={(e) => setCardanoAddress(e.target.value)}
-              className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 font-mono text-xs text-[#14150F]"
-              placeholder="addr_test1qz…"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Participation fee (ADA)</span>
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              value={feeAda}
-              onChange={(e) => setFeeAda(e.target.value)}
-              className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 text-sm"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Prize pool (ADA)</span>
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              value={poolAda}
-              onChange={(e) => setPoolAda(e.target.value)}
-              className="w-full rounded-xl border border-[#DCE8BE] bg-white px-3 py-2.5 text-sm"
-            />
-          </label>
-        </div>
+        )}
         {walletErr && <p className="mt-2 text-xs font-semibold text-red-600">{walletErr}</p>}
         {walletMsg && <p className="mt-2 text-xs font-semibold text-emerald-700">{walletMsg}</p>}
-        {savedAddr && (
+        {cardanoMode && savedAddr && (
           <p className="mt-2 font-mono text-[10px] text-[#5E6256]">
             Saved: {truncateMiddle(savedAddr, 14, 10)}
           </p>
         )}
         <button type="button" onClick={saveCardanoSettings} className="gold-btn mt-4 text-sm">
-          Save Cardano settings
+          Save event type settings
         </button>
       </div>
 

@@ -15,6 +15,7 @@ import { Navbar } from '@/components/Navbar'
 import store from '@/data/store'
 import { downloadCertificate } from '@/lib/certificate'
 import { explorerTxUrl, truncateMiddle } from '@/lib/cardano'
+import { isFreeEvent } from '@/lib/eventLifecycle'
 
 export default function VerifyCertificate() {
   const params = useParams<{ certificateId?: string; id?: string }>()
@@ -77,7 +78,11 @@ export default function VerifyCertificate() {
                 OnChainIn
               </p>
               <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9AA08D]">
-                {txHash ? 'Cardano-verified attendance' : 'Official event credential'}
+                {txHash
+                  ? 'Cardano-verified attendance'
+                  : isFreeEvent(event)
+                    ? 'Free event · not blockchain-verified'
+                    : 'Official event credential'}
               </p>
 
               <h1 className="mt-6 font-serif text-2xl font-bold tracking-tight text-[#14150F] sm:text-3xl">
@@ -132,9 +137,14 @@ export default function VerifyCertificate() {
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#52670F]">
-                          Cardano attendance proof
+                          {isFreeEvent(event) ? 'Verification status' : 'Cardano attendance proof'}
                         </p>
-                        {txHash ? (
+                        {isFreeEvent(event) ? (
+                          <p className="mt-1.5 text-sm text-[#5E6256]">
+                            This certificate is from a <strong>Free event</strong>. It is recorded in
+                            OnChainIn only — there is no Cardano transaction to audit on an explorer.
+                          </p>
+                        ) : txHash ? (
                           <>
                             <p className="mt-1.5 text-sm font-semibold text-[#14150F]">
                               On-chain check-in verified

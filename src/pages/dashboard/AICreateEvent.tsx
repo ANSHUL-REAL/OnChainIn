@@ -370,7 +370,12 @@ async function saveDraftToSupabase(draft: EventDraft) {
   return event.id as string;
 }
 
-function saveDraftToDemoStore(draft: EventDraft, organizerId: string, forcedEventId?: string) {
+function saveDraftToDemoStore(
+  draft: EventDraft,
+  organizerId: string,
+  forcedEventId?: string,
+  eventMode: 'cardano' | 'free' = 'cardano',
+) {
   const eventInput = {
     organizer_id: organizerId,
     title: draft.title.trim(),
@@ -384,6 +389,9 @@ function saveDraftToDemoStore(draft: EventDraft, organizerId: string, forcedEven
     city: draft.city,
     poster_url: null,
     max_participants: draft.max_participants,
+    event_mode: eventMode,
+    participation_fee_ada: eventMode === 'free' ? 0 : 0,
+    prize_pool_ada: eventMode === 'free' ? 0 : 0,
     status: 'published',
   } as const;
 
@@ -403,6 +411,7 @@ export default function AICreateEvent() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [eventMode, setEventMode] = useState<'cardano' | 'free'>('cardano');
 
   useEffect(() => {
     const pendingPrompt = localStorage.getItem(AI_PROMPT_KEY);
@@ -465,7 +474,7 @@ export default function AICreateEvent() {
 
     setSaving(true);
     try {
-      const eventId = saveDraftToDemoStore(draft, user.id);
+      const eventId = saveDraftToDemoStore(draft, user.id, undefined, eventMode);
       localStorage.removeItem(AI_PROMPT_KEY);
       navigate(`/dashboard/organizer/events/${eventId}`);
 
@@ -505,6 +514,27 @@ export default function AICreateEvent() {
               , put it in <code className="font-mono">.env</code> as <code className="font-mono">VITE_GROQ_API_KEY=gsk_...</code>
             </div>
           )}
+
+          <div className="mb-4 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setEventMode('cardano')}
+              className={`rounded-xl border p-3 text-left text-xs ${
+                eventMode === 'cardano' ? 'border-[#7C3AED] bg-[#F5F3FF] font-bold text-[#7C3AED]' : 'border-[#E7E1D2] text-[#5E6256]'
+              }`}
+            >
+              Cardano (ADA) event — fees, prizes, on-chain certs
+            </button>
+            <button
+              type="button"
+              onClick={() => setEventMode('free')}
+              className={`rounded-xl border p-3 text-left text-xs ${
+                eventMode === 'free' ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-800' : 'border-[#E7E1D2] text-[#5E6256]'
+              }`}
+            >
+              Free event — no ADA / no chain-verified certs
+            </button>
+          </div>
 
           <div className="rounded-[1.5rem] border border-[#E7E1D2] bg-[#F7F6EB] p-4 mb-4">
             <label className="text-xs font-black tracking-wide text-[#6A7D1A] mb-2 block">Describe your event</label>

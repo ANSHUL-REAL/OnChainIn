@@ -1,6 +1,29 @@
-import type { Event } from '@/types';
+import type { Event, EventMode } from '@/types';
 
 export type EventDisplayStatus = 'Cancelled' | 'Draft' | 'Ended' | 'Live Today' | 'Upcoming';
+
+/**
+ * Resolve event economics mode.
+ * Explicit event_mode wins; legacy events with ADA fee/pool → cardano; else free.
+ */
+export function getEventMode(event: Event | null | undefined): EventMode {
+  if (!event) return 'free'
+  if (event.event_mode === 'cardano' || event.event_mode === 'free') return event.event_mode
+  const fee = event.participation_fee_ada || 0
+  const pool = event.prize_pool_ada || 0
+  if (fee > 0 || pool > 0) return 'cardano'
+  // Default published events to cardano-capable when address was historically used;
+  // prefer free for safety when nothing Cardano-specific is set.
+  return 'free'
+}
+
+export function isCardanoEvent(event: Event | null | undefined): boolean {
+  return getEventMode(event) === 'cardano'
+}
+
+export function isFreeEvent(event: Event | null | undefined): boolean {
+  return getEventMode(event) === 'free'
+}
 
 /** When can people check in (QR / manual / Cardano)? */
 export type CheckInPhase = 'draft' | 'cancelled' | 'not_open' | 'open' | 'closed';

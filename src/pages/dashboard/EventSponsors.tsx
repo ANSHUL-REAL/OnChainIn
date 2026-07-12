@@ -4,6 +4,7 @@ import { DashboardLayout } from '@/components/DashboardLayout'
 import store from '@/data/store'
 import { Plus, Handshake, Blocks, ExternalLink, CheckCircle } from 'lucide-react'
 import { explorerTxUrl, formatAda, truncateMiddle } from '@/lib/cardano'
+import { isCardanoEvent } from '@/lib/eventLifecycle'
 
 export default function EventSponsors() {
   const { id } = useParams<{ id: string }>()
@@ -49,25 +50,39 @@ export default function EventSponsors() {
     setVersion((v) => v + 1)
   }
 
+  const cardano = isCardanoEvent(event)
+
   return (
     <DashboardLayout title="Sponsors">
-      <div className="mb-5 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4">
+      <div className={`mb-5 rounded-2xl border p-4 ${cardano ? 'border-[#DDD6FE] bg-[#F5F3FF]' : 'border-emerald-200 bg-emerald-50'}`}>
         <div className="flex items-start gap-3">
-          <Blocks className="mt-0.5 h-5 w-5 text-[#7C3AED]" />
+          <Blocks className={`mt-0.5 h-5 w-5 ${cardano ? 'text-[#7C3AED]' : 'text-emerald-700'}`} />
           <div className="min-w-0">
-            <p className="text-sm font-bold text-[#192837]">Cardano sponsorship payments</p>
-            <p className="mt-1 text-xs leading-5 text-[#5E6256]">
-              1) Save your receive address under Event manage → Cardano settings. 2) Approve a sponsor interest
-              (Contacted / Confirm). 3) Sponsor pays ADA on-chain to your address from their dashboard.
-            </p>
-            {organizerAddr ? (
-              <p className="mt-2 font-mono text-[11px] font-semibold text-[#7C3AED]">
-                Receiving: {truncateMiddle(organizerAddr, 16, 12)}
-              </p>
+            {cardano ? (
+              <>
+                <p className="text-sm font-bold text-[#192837]">Cardano sponsorship payments</p>
+                <p className="mt-1 text-xs leading-5 text-[#5E6256]">
+                  1) Save your receive address under Event manage. 2) Approve a sponsor interest. 3) Sponsor pays
+                  ADA on-chain from My Interests.
+                </p>
+                {organizerAddr ? (
+                  <p className="mt-2 font-mono text-[11px] font-semibold text-[#7C3AED]">
+                    Receiving: {truncateMiddle(organizerAddr, 16, 12)}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs font-semibold text-amber-800">
+                    No wallet saved yet — open Event manage and add your Cardano address first.
+                  </p>
+                )}
+              </>
             ) : (
-              <p className="mt-2 text-xs font-semibold text-amber-800">
-                No wallet saved yet — open Event manage and add your Cardano address first.
-              </p>
+              <>
+                <p className="text-sm font-bold text-emerald-900">Free event — no ADA sponsorship</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-900/80">
+                  This event is free mode. Sponsors can still submit interest, but there is no on-chain ADA payment.
+                  Switch to Cardano mode in Event manage to enable payments.
+                </p>
+              </>
             )}
           </div>
         </div>
@@ -208,7 +223,7 @@ export default function EventSponsors() {
                         onClick={() => updateStatus(si.id, 'confirmed')}
                         className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700"
                       >
-                        Approve for ADA payment
+                        {cardano ? 'Approve for ADA payment' : 'Confirm partnership'}
                       </button>
                       <button
                         type="button"
@@ -221,7 +236,9 @@ export default function EventSponsors() {
                   )}
                   {si.status === 'confirmed' && !si.tx_hash && (
                     <p className="mt-2 text-[10px] font-semibold text-emerald-800">
-                      Approved — sponsor can now pay ADA from My Interests.
+                      {cardano
+                        ? 'Approved — sponsor can now pay ADA from My Interests.'
+                        : 'Confirmed (free event — no ADA payment step).'}
                     </p>
                   )}
                 </div>

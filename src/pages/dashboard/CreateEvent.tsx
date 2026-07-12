@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import store from '@/data/store';
 import { createLocalPosterDataUrl, uploadEventPoster } from '@/lib/eventPosterUpload';
-import { ImagePlus, X } from 'lucide-react';
+import { Blocks, ImagePlus, Sparkles, X } from 'lucide-react';
+import type { EventMode } from '@/types';
 
 export default function CreateEvent() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function CreateEvent() {
   const [venue, setVenue] = useState('');
   const [city, setCity] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('100');
+  const [eventMode, setEventMode] = useState<EventMode>('cardano');
   const [cardanoAddress, setCardanoAddress] = useState(user?.cardano_address || '');
   const [participationFeeAda, setParticipationFeeAda] = useState('0');
   const [prizePoolAda, setPrizePoolAda] = useState('0');
@@ -62,12 +64,18 @@ export default function CreateEvent() {
           posterUrl = await createLocalPosterDataUrl(posterFile);
         }
       }
+      const isCardano = eventMode === 'cardano';
       const wallet = cardanoAddress.trim();
-      if (wallet.length >= 20) {
+      if (isCardano) {
+        if (wallet.length < 20) {
+          setError('Cardano events need your receive address (addr_test1…). Or pick Free event.');
+          setSubmitting(false);
+          return;
+        }
         store.updateProfile(user.id, { cardano_address: wallet });
       }
-      const fee = Math.max(0, parseFloat(participationFeeAda) || 0);
-      const pool = Math.max(0, parseFloat(prizePoolAda) || 0);
+      const fee = isCardano ? Math.max(0, parseFloat(participationFeeAda) || 0) : 0;
+      const pool = isCardano ? Math.max(0, parseFloat(prizePoolAda) || 0) : 0;
       const created = store.createEvent({
         organizer_id: user.id,
         title,
@@ -81,11 +89,12 @@ export default function CreateEvent() {
         city,
         poster_url: posterUrl,
         max_participants: parseInt(maxParticipants) || 100,
+        event_mode: eventMode,
         participation_fee_ada: fee,
         prize_pool_ada: pool,
         status: 'published',
       });
-      if (pool > 0) store.setPrizePool(created.id, pool, 'ADA', 'Prize pool (ADA)');
+      if (isCardano && pool > 0) store.setPrizePool(created.id, pool, 'ADA', 'Prize pool (ADA)');
       setSuccess('Event created successfully.');
       navigate('/dashboard/organizer/events');
     } catch (err) {
@@ -101,6 +110,45 @@ export default function CreateEvent() {
       {success && <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm">{success}</div>}
       <form onSubmit={handleSubmit} className="max-w-2xl">
         <div className="glass-card rounded-xl p-6 space-y-4">
+          {/* Mode picker — first decision for judges & organizers */}
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#C4B5FD] mb-2">
+              How do you want to run this event?
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setEventMode('cardano')}
+                className={`rounded-xl border p-4 text-left transition ${
+                  eventMode === 'cardano'
+                    ? 'border-[#7C3AED] bg-[#7C3AED]/20 ring-2 ring-[#7C3AED]/40'
+                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                }`}
+              >
+                <Blocks className={`h-6 w-6 mb-2 ${eventMode === 'cardano' ? 'text-[#C4B5FD]' : 'text-white/40'}`} />
+                <p className="text-sm font-bold text-white">Cardano (ADA) event</p>
+                <p className="mt-1 text-[11px] leading-4 text-white/50">
+                  Fees, sponsorship, prizes in ADA. Wallet check-in + certificates can bind on-chain proof.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEventMode('free')}
+                className={`rounded-xl border p-4 text-left transition ${
+                  eventMode === 'free'
+                    ? 'border-emerald-400/60 bg-emerald-500/15 ring-2 ring-emerald-400/30'
+                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                }`}
+              >
+                <Sparkles className={`h-6 w-6 mb-2 ${eventMode === 'free' ? 'text-emerald-300' : 'text-white/40'}`} />
+                <p className="text-sm font-bold text-white">Free event</p>
+                <p className="mt-1 text-[11px] leading-4 text-white/50">
+                  No ADA payments or prize pool. Participation + QR only. Certificates are not blockchain-verifiable.
+                </p>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-xs text-white/50 mb-1.5 block">Event Title *</label>
             <input value={title} onChange={e => setTitle(e.target.value)} required disabled={submitting}
@@ -190,51 +238,63 @@ export default function CreateEvent() {
               className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#E49B3A]/50" />
           </div>
 
-          <div className="rounded-xl border border-[#7C3AED]/35 bg-[#7C3AED]/10 p-4 space-y-3">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#C4B5FD]">Cardano receive wallet</p>
-            <p className="text-[11px] leading-5 text-white/55">
-              Paste your Preprod receive address (<span className="font-mono">addr_test1…</span>). Sponsors send ADA here after you approve them. Also used for participation fees.
-            </p>
-            <div>
-              <label className="text-xs text-white/50 mb-1.5 block">Your Cardano wallet address *</label>
-              <input
-                value={cardanoAddress}
-                onChange={e => setCardanoAddress(e.target.value)}
-                disabled={submitting}
-                required
-                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-xs font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#7C3AED]/50"
-                placeholder="addr_test1qz…"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          {eventMode === 'cardano' ? (
+            <div className="rounded-xl border border-[#7C3AED]/35 bg-[#7C3AED]/10 p-4 space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#C4B5FD]">Cardano receive wallet</p>
+              <p className="text-[11px] leading-5 text-white/55">
+                Public receive address only (not a private key). Sponsors & fee payers send ADA here on Preprod.
+              </p>
               <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Participation fee (ADA)</label>
+                <label className="text-xs text-white/50 mb-1.5 block">Your Cardano wallet address *</label>
                 <input
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={participationFeeAda}
-                  onChange={e => setParticipationFeeAda(e.target.value)}
+                  value={cardanoAddress}
+                  onChange={e => setCardanoAddress(e.target.value)}
                   disabled={submitting}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
-                  placeholder="0 = free"
+                  required={eventMode === 'cardano'}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-xs font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#7C3AED]/50"
+                  placeholder="addr_test1qz…"
                 />
               </div>
-              <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Prize pool (ADA)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={prizePoolAda}
-                  onChange={e => setPrizePoolAda(e.target.value)}
-                  disabled={submitting}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
-                  placeholder="0"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 mb-1.5 block">Participation fee (ADA)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={participationFeeAda}
+                    onChange={e => setParticipationFeeAda(e.target.value)}
+                    disabled={submitting}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
+                    placeholder="0 = free entry"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-white/50 mb-1.5 block">Prize pool (ADA)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={prizePoolAda}
+                    onChange={e => setPrizePoolAda(e.target.value)}
+                    disabled={submitting}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">Free event mode</p>
+              <ul className="mt-2 space-y-1 text-[11px] leading-5 text-white/60">
+                <li>· No participation fee or sponsor ADA payments</li>
+                <li>· No prize money distribution on Cardano</li>
+                <li>· Certificates are app-issued only (not blockchain-verifiable)</li>
+                <li>· Still supports applications, approval, QR, volunteers</li>
+              </ul>
+            </div>
+          )}
 
           <div className="pt-4 flex gap-3">
             <button type="submit" disabled={submitting} className="gold-btn text-sm disabled:opacity-60">
