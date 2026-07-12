@@ -90,49 +90,108 @@ export interface AdaPaymentPayload {
   note?: string
 }
 
+/**
+ * Cardano tx metadata strings are hard-capped at 64 bytes (UTF-8).
+ * Longer titles / pipe-joined msgs fail with MAX_LENGTH_LIMIT.
+ */
+export const META_STR_MAX = 64
+
+/** Truncate a string to at most maxBytes UTF-8 bytes (safe for Cardano metadatum). */
+export function clipMetaString(value: string | undefined | null, maxBytes = META_STR_MAX): string {
+  const s = String(value ?? '')
+  if (!s) return ''
+  const encoder = new TextEncoder()
+  if (encoder.encode(s).length <= maxBytes) return s
+  // Binary-search a code-unit cut that stays within maxBytes
+  let lo = 0
+  let hi = s.length
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2)
+    if (encoder.encode(s.slice(0, mid)).length <= maxBytes) lo = mid
+    else hi = mid - 1
+  }
+  return s.slice(0, lo)
+}
+
+/** Split into CIP-20 style `msg` array entries, each ≤ 64 bytes. */
+export function metaMsgChunks(...parts: Array<string | number | undefined | null>): string[] {
+  const joined = parts
+    .map((p) => (p == null || p === '' ? '' : String(p)))
+    .filter(Boolean)
+    .join('|')
+  if (!joined) return [clipMetaString(CARDANO.appId)]
+  const encoder = new TextEncoder()
+  if (encoder.encode(joined).length <= META_STR_MAX) return [joined]
+  const chunks: string[] = []
+  let rest = joined
+  while (rest.length > 0) {
+    const piece = clipMetaString(rest, META_STR_MAX)
+    if (!piece) break
+    chunks.push(piece)
+    rest = rest.slice(piece.length)
+  }
+  return chunks.length ? chunks : [clipMetaString(CARDANO.appId)]
+}
+
 export function buildMetadata(payload: OnChainProofPayload) {
   const timestamp = Math.floor(Date.now() / 1000)
+  const code = payload.registrationCode || ''
+  // Prefer short ids in msg; full title lives (clipped) on `event` only.
   return {
-    app: CARDANO.appId,
-    kind: payload.kind,
-    event_id: payload.eventId,
-    event: payload.eventTitle,
-    registration_code: payload.registrationCode || '',
-    role: payload.role || 'participant',
-    participant_id: payload.participantId || '',
-    session: payload.session || 'Main',
-    location: payload.location || '',
+    app: clipMetaString(CARDANO.appId),
+    kind: clipMetaString(payload.kind),
+    event_id: clipMetaString(payload.eventId),
+    event: clipMetaString(payload.eventTitle),
+    registration_code: clipMetaString(code),
+    role: clipMetaString(payload.role || 'participant'),
+    participant_id: clipMetaString(payload.participantId || ''),
+    session: clipMetaString(payload.session || 'Main'),
+    location: clipMetaString(payload.location || ''),
     timestamp,
-    msg: [
-      `OnChainIn|${payload.kind}|${payload.eventTitle}|${payload.registrationCode || ''}|${timestamp}`,
-    ],
+    msg: metaMsgChunks(
+      CARDANO.appId,
+      payload.kind,
+      payload.eventId,
+      code,
+      timestamp,
+    ),
   }
 }
 
 export function buildPaymentMetadata(payload: AdaPaymentPayload, adaAmount: number) {
   const timestamp = Math.floor(Date.now() / 1000)
   return {
-    app: CARDANO.appId,
-    kind: payload.kind,
-    event_id: payload.eventId,
-    event: payload.eventTitle,
-    label: payload.label || payload.kind,
-    to_user_id: payload.toUserId || '',
-    from_role: payload.fromRole || '',
-    note: payload.note || '',
+    app: clipMetaString(CARDANO.appId),
+    kind: clipMetaString(payload.kind),
+    event_id: clipMetaString(payload.eventId),
+    event: clipMetaString(payload.eventTitle),
+    label: clipMetaString(payload.label || payload.kind),
+    to_user_id: clipMetaString(payload.toUserId || ''),
+    from_role: clipMetaString(payload.fromRole || ''),
+    note: clipMetaString(payload.note || ''),
     ada: adaAmount,
     timestamp,
-    msg: [
-      `OnChainIn|${payload.kind}|${payload.eventTitle}|${adaAmount}ADA|${timestamp}`,
-    ],
+    msg: metaMsgChunks(
+      CARDANO.appId,
+      payload.kind,
+      payload.eventId,
+      `${adaAmount}ADA`,
+      timestamp,
+    ),
   }
 }
 
 function mapBuildError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err)
-  if (msg.toLowerCase().includes('utxo') || msg.toLowerCase().includes('insufficient')) {
+  const lower = msg.toLowerCase()
+  if (lower.includes('utxo') || lower.includes('insufficient')) {
     return new Error(
       'Insufficient Preprod ADA. Fund your wallet from the Cardano faucet, then try again.',
+    )
+  }
+  if (lower.includes('max_length') || lower.includes('too long') || lower.includes('64')) {
+    return new Error(
+      'Transaction metadata was too long for Cardano (64-byte limit per string). Refresh and try check-in again.',
     )
   }
   return new Error(`Failed to build transaction: ${msg}`)
