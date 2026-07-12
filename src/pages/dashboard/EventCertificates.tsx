@@ -16,7 +16,7 @@ export default function EventCertificates() {
   if (!event) {
     return (
       <DashboardLayout title="Certificates">
-        <p className="text-white/50">Event not found</p>
+        <p className="text-[#5E6256]">Event not found</p>
       </DashboardLayout>
     )
   }
@@ -26,7 +26,6 @@ export default function EventCertificates() {
     store.getCurrentUser()?.full_name ||
     'OnChainIn'
   const registrations = store.getEventRegistrations(event.id)
-  // Only checked-in (attended) participants are certificate-eligible.
   const attended = registrations.filter((r) => r.status === 'attended')
   const existingCerts = store.getEventCertificates(event.id)
   const certByUser = new Map(existingCerts.map((c) => [c.user_id, c]))
@@ -84,23 +83,23 @@ export default function EventCertificates() {
     <DashboardLayout title="Certificates">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">{event.title}</p>
-          <p className="mt-1 text-sm text-white/50">
+          <p className="text-sm font-semibold text-[#192837]">{event.title}</p>
+          <p className="mt-1 text-sm text-[#5E6256]">
             {attended.length} checked-in · certificate eligible · {existingCerts.length} issued
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {attended.length === 0 ? (
         <div className="glass-card rounded-2xl p-10 text-center">
-          <Award className="mx-auto mb-3 h-12 w-12 text-white/20" />
-          <p className="text-sm text-white/55">
+          <Award className="mx-auto mb-3 h-12 w-12 text-[#192837]/15" />
+          <p className="text-sm text-[#5E6256]">
             No checked-in participants yet. Check people in from the Check-In page first — only
             checked-in attendees can receive certificates.
           </p>
@@ -115,34 +114,36 @@ export default function EventCertificates() {
             return (
               <div
                 key={reg.id}
-                className="glass-card flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center"
+                className="glass-card flex flex-col gap-3 rounded-xl border border-[#E7E1D2] bg-white p-4 shadow-sm sm:flex-row sm:items-center"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cyan-400/15 text-sm font-bold text-cyan-300">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EDE9FE] text-sm font-bold text-[#7C3AED]">
                   {name[0]?.toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{name}</p>
-                  <p className="mono-text mt-0.5 text-[11px] text-white/45">
+                  <p className="truncate text-sm font-semibold text-[#192837]">{name}</p>
+                  <p className="mono-text mt-0.5 text-[11px] text-[#5E6256]">
                     {cert?.certificate_code || reg.registration_code}
                   </p>
                   {txHash ? (
-                    <p className="mono-text mt-1.5 flex items-center gap-1 text-[11px] text-emerald-300">
+                    <p className="mono-text mt-1.5 flex items-center gap-1 text-[11px] text-emerald-700">
                       <Blocks className="h-3 w-3" /> Cardano {truncateMiddle(txHash)}
                     </p>
                   ) : (
-                    <p className="mt-1.5 text-[11px] text-white/40">No on-chain tx (manual/QR check-in)</p>
+                    <p className="mt-1.5 text-[11px] text-[#5E6256]/70">
+                      No on-chain tx (manual/QR check-in)
+                    </p>
                   )}
                 </div>
                 {cert ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="hidden items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 sm:inline-flex">
+                    <span className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
                       <CheckCircle className="h-3 w-3" /> Issued
                     </span>
                     <button
                       type="button"
                       onClick={() => void download(name, cert.certificate_code, reg.participant_id)}
                       disabled={busy === cert.certificate_code}
-                      className="inline-flex items-center gap-1 rounded-lg bg-amber-400/15 px-3 py-1.5 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
                     >
                       {busy === cert.certificate_code ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -153,7 +154,7 @@ export default function EventCertificates() {
                     </button>
                     <Link
                       to={`/verify/certificate/${cert.certificate_code}`}
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
                     >
                       Verify
                     </Link>
@@ -162,7 +163,7 @@ export default function EventCertificates() {
                         href={cert.explorer_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/60 transition hover:bg-white/10 hover:text-white"
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#F2F2EE] px-3 py-1.5 text-[11px] font-semibold text-[#5E6256] transition hover:bg-[#E8E6DF] hover:text-[#192837]"
                       >
                         Explorer <ExternalLink className="h-3 w-3" />
                       </a>
@@ -172,7 +173,7 @@ export default function EventCertificates() {
                   <button
                     type="button"
                     onClick={() => issue(reg.participant_id, name)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition hover:bg-cyan-400/25"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#EDE9FE] px-3 py-1.5 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#DDD6FE]"
                   >
                     <Award className="h-3.5 w-3.5" /> Generate{txHash ? ' + bind tx' : ''}
                   </button>

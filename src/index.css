@@ -88,35 +88,10 @@
     box-shadow: 0 0 0 1px rgba(0, 51, 173, 0.22), 0 24px 80px rgba(15, 23, 42, 0.18);
   }
 
-  /* Default: dark glass for dashboard / dark surfaces (marketing overrides under .eventos-light-app) */
   .glass-card {
-    background: rgba(255, 255, 255, 0.045);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #F2F0EA;
-  }
-
-  /* Dark workspace shell — keeps list text readable on glass cards */
-  .dashboard-app {
-    color: #F2F0EA;
-  }
-
-  .dashboard-app .glass-card {
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #F2F0EA;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-  }
-
-  /* Soft elevated cards used on organizer home (keep readable dark text) */
-  .dashboard-app .dash-surface {
-    background: #161A22;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #F2F0EA;
-  }
-
-  .dashboard-app .dash-surface-muted {
-    color: rgba(242, 240, 234, 0.55);
+    background: #ffffff;
+    backdrop-filter: blur(8px);
+    border: 1px solid #E7E1D2;
   }
 
   .venue-texture {

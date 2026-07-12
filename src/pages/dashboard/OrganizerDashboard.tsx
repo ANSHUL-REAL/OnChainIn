@@ -67,16 +67,15 @@ export default function OrganizerDashboard() {
 
   return (
     <DashboardLayout title="Organizer">
-      {/* Two clear features — same form as landing: simple cards */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => navigate('/dashboard/organizer/create-with-ai')}
-          className="rounded-[1.75rem] bg-[#7C3AED] p-6 text-left text-white shadow-[0_16px_40px_rgba(124,58,237,0.28)] transition hover:brightness-105"
+          className="rounded-[1.75rem] bg-[#7C3AED] p-6 text-left text-[#FFFFFF] shadow-[0_16px_40px_rgba(124,58,237,0.28)] transition hover:brightness-105"
         >
           <Bot className="h-8 w-8 opacity-90" />
           <h2 className="mt-4 text-2xl font-bold tracking-tight">Create events with AI</h2>
-          <p className="mt-2 text-sm leading-6 text-white/85">
+          <p className="mt-2 text-sm leading-6 text-[#FFFFFF]/85">
             One prompt → draft event, form, volunteers, and certificate setup. Then edit and publish.
           </p>
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">
@@ -84,20 +83,20 @@ export default function OrganizerDashboard() {
           </span>
         </button>
 
-        <div className="dash-surface rounded-[1.75rem] p-6">
-          <Blocks className="h-8 w-8 text-emerald-400" />
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-white">
+        <div className="rounded-[1.75rem] border border-black/[0.06] bg-white p-6 shadow-sm">
+          <Blocks className="h-8 w-8 text-[#7C3AED]" />
+          <h2 className="mt-4 text-2xl font-bold tracking-tight text-[#192837]">
             Check-in on Cardano
           </h2>
-          <p className="mt-2 text-sm leading-6 text-white/55">
+          <p className="mt-2 text-sm leading-6 text-[#5E6256]">
             On event day, attendees sign with a wallet. Attendance is on-chain; certificates can show
             the tx hash for verification.
           </p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="rounded-full bg-white/10 px-3 py-1 text-white/70">{pending} pending</span>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-white/70">{approved} approved</span>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-white/70">{attended} checked in</span>
-            <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-300">
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[#5E6256]">
+            <span className="rounded-full bg-[#F2F2EE] px-3 py-1">{pending} pending</span>
+            <span className="rounded-full bg-[#F2F2EE] px-3 py-1">{approved} approved</span>
+            <span className="rounded-full bg-[#F2F2EE] px-3 py-1">{attended} checked in</span>
+            <span className="rounded-full bg-[#EDE9FE] px-3 py-1 text-[#7C3AED]">
               {onChain} on-chain
             </span>
           </div>
@@ -110,30 +109,30 @@ export default function OrganizerDashboard() {
             key={a.path + a.title}
             type="button"
             onClick={() => navigate(a.path)}
-            className="dash-surface rounded-2xl p-5 text-left transition hover:-translate-y-0.5 hover:border-white/15"
+            className="rounded-2xl border border-black/[0.06] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
-            <a.icon className="h-5 w-5 text-emerald-400" />
-            <h3 className="mt-3 font-bold text-white">{a.title}</h3>
-            <p className="mt-1 text-xs leading-5 text-white/50">{a.text}</p>
+            <a.icon className="h-5 w-5 text-[#7C3AED]" />
+            <h3 className="mt-3 font-bold text-[#192837]">{a.title}</h3>
+            <p className="mt-1 text-xs leading-5 text-[#5E6256]">{a.text}</p>
           </button>
         ))}
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">Your events</h2>
+        <h2 className="text-lg font-bold text-[#192837]">Your events</h2>
         <button
           type="button"
           onClick={() => navigate('/dashboard/organizer/events')}
-          className="text-sm font-semibold text-emerald-400"
+          className="text-sm font-semibold text-[#7C3AED]"
         >
           View all
         </button>
       </div>
 
       {active.length === 0 && events.length === 0 ? (
-        <div className="dash-surface rounded-2xl border-dashed p-10 text-center">
-          <Users className="mx-auto h-10 w-10 text-white/25" />
-          <p className="mt-3 text-sm text-white/50">No events yet. Start with AI create.</p>
+        <div className="rounded-2xl border border-dashed border-black/10 bg-white p-10 text-center">
+          <Users className="mx-auto h-10 w-10 text-[#7C3AED]/40" />
+          <p className="mt-3 text-sm text-[#5E6256]">No events yet. Start with AI create.</p>
           <button
             type="button"
             onClick={() => navigate('/dashboard/organizer/create-with-ai')}
@@ -152,7 +151,7 @@ export default function OrganizerDashboard() {
                 key={event.id}
                 type="button"
                 onClick={() => navigate(`/dashboard/organizer/events/${event.id}`)}
-                className="dash-surface flex w-full items-center gap-4 rounded-2xl p-4 text-left transition hover:border-emerald-400/30"
+                className="flex w-full items-center gap-4 rounded-2xl border border-black/[0.06] bg-white p-4 text-left shadow-sm transition hover:border-[#7C3AED]/30"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -161,15 +160,15 @@ export default function OrganizerDashboard() {
                     >
                       {status}
                     </span>
-                    <span className="text-[10px] font-semibold text-white/45">{event.category}</span>
+                    <span className="text-[10px] font-semibold text-[#5E6256]">{event.category}</span>
                   </div>
-                  <p className="mt-1 truncate font-bold text-white">{event.title}</p>
-                  <p className="text-xs text-white/45">
+                  <p className="mt-1 truncate font-bold text-[#192837]">{event.title}</p>
+                  <p className="text-xs text-[#5E6256]">
                     {event.date}
                     {event.city ? ` · ${event.city}` : ''} · {er.length} applications
                   </p>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-emerald-400" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#7C3AED]" />
               </button>
             )
           })}

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
-import { ChevronDown, LogOut } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { ensureSupabaseSession } from '@/lib/persistence'
 import store from '@/data/store'
@@ -13,14 +13,11 @@ function isDashboardRole(role: string | undefined): role is UserRole {
   return role === 'organizer' || role === 'participant' || role === 'volunteer' || role === 'sponsor'
 }
 
-const ROLES: UserRole[] = ['organizer', 'participant', 'volunteer', 'sponsor']
-
 export function DashboardLayout({ children, title }: { children: React.ReactNode; title: string }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, loading, isAuthenticated, continueAs, signOut } = useAuth()
   const roleSyncRef = useRef<string | null>(null)
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -70,8 +67,8 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0C0F14]">
-        <p className="text-sm text-white/50">Opening workspace…</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F2EB]">
+        <p className="text-sm text-[#5E6256]">Opening workspace…</p>
       </div>
     )
   }
@@ -95,8 +92,8 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
 
   if (!resolvedUser) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0C0F14]">
-        <p className="text-sm text-white/50">Redirecting to sign in…</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F2EB]">
+        <p className="text-sm text-[#5E6256]">Redirecting to sign in…</p>
       </div>
     )
   }
@@ -111,88 +108,45 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
     sponsor: 'Discover events · submit interest',
   }
 
-  const switchRole = (r: UserRole) => {
-    setRoleMenuOpen(false)
-    continueAs(r)
-    navigate(getDashboardRoute(r))
-  }
-
   return (
-    <div className="dashboard-app min-h-screen bg-[#0C0F14] text-[#F2F0EA]">
-      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#0C0F14]/92 backdrop-blur-md">
+    /* eventos-light-app remaps legacy text-white utilities so lists stay readable on light cards */
+    <div className="eventos-light-app min-h-screen bg-[#F6F2EB] text-[#192837]">
+      <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#F6F2EB]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex rounded-xl bg-white p-1.5 shadow-sm">
-              <BrandLogo variant="icon" size={28} />
-            </span>
-            <Link
-              to={getDashboardRoute(roleForCopy || 'organizer')}
-              className="hidden text-sm font-semibold text-white/80 hover:text-white sm:inline"
-            >
-              Workspace
-            </Link>
-          </div>
+          <BrandLogo variant="icon" size={34} />
 
-          {/* Quiet role switcher — replaces loud purple pills */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setRoleMenuOpen((o) => !o)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-semibold capitalize text-white/85 transition hover:border-white/20 hover:bg-white/[0.07]"
-              aria-expanded={roleMenuOpen}
-              aria-haspopup="listbox"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              {roleForCopy}
-              <ChevronDown className={`h-3.5 w-3.5 text-white/45 transition ${roleMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {roleMenuOpen && (
-              <>
-                <button
-                  type="button"
-                  className="fixed inset-0 z-40 cursor-default"
-                  aria-label="Close role menu"
-                  onClick={() => setRoleMenuOpen(false)}
-                />
-                <div
-                  role="listbox"
-                  className="absolute left-1/2 top-[calc(100%+0.4rem)] z-50 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-white/10 bg-[#161A22] py-1 shadow-2xl"
-                >
-                  {ROLES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      role="option"
-                      aria-selected={roleForCopy === r}
-                      onClick={() => switchRole(r)}
-                      className={`flex w-full items-center px-3.5 py-2.5 text-left text-xs font-semibold capitalize transition ${
-                        roleForCopy === r
-                          ? 'bg-white/[0.08] text-white'
-                          : 'text-white/65 hover:bg-white/[0.05] hover:text-white'
-                      }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <nav className="hidden items-center gap-1 md:flex">
+            {(['organizer', 'participant', 'volunteer', 'sponsor'] as UserRole[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => {
+                  continueAs(r)
+                  navigate(getDashboardRoute(r))
+                }}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition ${
+                  roleForCopy === r
+                    ? 'bg-[#7C3AED] text-[#FFFFFF]'
+                    : 'text-[#192837]/70 hover:bg-white'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </nav>
 
           <div className="flex items-center gap-2">
             <CloudStatusBadge compact />
-            <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 sm:flex">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
+            <div className="hidden items-center gap-2 rounded-full bg-white px-2.5 py-1.5 shadow-sm sm:flex">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EDE9FE] text-xs font-bold text-[#7C3AED]">
                 {initial}
               </span>
-              <span className="max-w-[8rem] truncate text-xs font-semibold text-white/80">
-                {resolvedUser.full_name}
-              </span>
+              <span className="max-w-[8rem] truncate text-xs font-semibold">{resolvedUser.full_name}</span>
             </div>
             <button
               type="button"
               onClick={() => void signOut().then(() => navigate('/login'))}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition hover:border-red-400/40 hover:text-red-300"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#5E6256] shadow-sm hover:text-red-500"
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
@@ -203,11 +157,11 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-400/90">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">
             {roleForCopy} workspace
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
-          <p className="mt-2 max-w-xl text-sm text-white/50">
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#192837] sm:text-4xl">{title}</h1>
+          <p className="mt-2 max-w-xl text-sm text-[#5E6256]">
             {shortCopy[roleForCopy || 'organizer']}
           </p>
         </div>
