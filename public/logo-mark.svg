@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="OnChainIn">
-  <!-- Geometric mark matching uploaded OnChainIn logo -->
-  <path
-    fill="#192837"
-    d="M32 32h72l88 88-40 40L32 72V32zm96 0h96v72l-56 56-40-40V32zM32 160l72 64H32v-64zm96 32l96 64h-96v-64z"
-  />
-</svg>

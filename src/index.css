@@ -1968,8 +1968,16 @@
     color: #14150F;
   }
 
+  /* Visible card boxes (were missing base surface — looked “plain”) */
   .eventos-light-app .workspace-card,
   .eventos-light-app .workspace-stat-card {
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #E7E1D2;
+    box-shadow:
+      0 12px 32px rgba(25, 40, 55, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
     transition: transform 460ms var(--eventos-ease-soft), border-color 460ms var(--eventos-ease-soft), box-shadow 460ms var(--eventos-ease-soft);
   }
 
@@ -1981,7 +1989,7 @@
     bottom: 0.85rem;
     height: 0.18rem;
     border-radius: 999px;
-    background: linear-gradient(90deg, #52670F, rgba(56, 189, 248, 0.72), transparent);
+    background: linear-gradient(90deg, #7C3AED, rgba(124, 58, 237, 0.35), transparent);
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 520ms var(--eventos-ease-soft);
@@ -1990,10 +1998,10 @@
   .eventos-light-app .workspace-card:hover,
   .eventos-light-app .workspace-stat-card:hover {
     transform: translateY(-3px);
-    border-color: #CFE2A1;
+    border-color: #DDD6FE;
     box-shadow:
-      0 26px 64px rgba(0, 51, 173, 0.13),
-      inset 0 1px 0 rgba(255, 255, 255, 0.92);
+      0 22px 48px rgba(124, 58, 237, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
 
   .eventos-light-app .workspace-card:hover::after {
@@ -2007,14 +2015,14 @@
     align-items: center;
     justify-content: center;
     border-radius: 1rem;
-    background: linear-gradient(135deg, #EEF5D9, #F8FCEB);
-    color: #52670F;
-    border: 1px solid #DCE8BE;
+    background: #EDE9FE;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
   .eventos-light-app .workspace-kicker {
-    color: #52670F;
+    color: #7C3AED;
     font-size: 0.72rem;
     font-weight: 900;
     letter-spacing: 0.22em;
@@ -2024,23 +2032,28 @@
   .eventos-light-app .workspace-panel {
     border-radius: 1.75rem;
     padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #E7E1D2;
+    box-shadow: 0 12px 32px rgba(25, 40, 55, 0.05);
   }
 
   .eventos-light-app .workspace-empty {
-    border-style: dashed;
+    border: 1px dashed #D9D0B8;
     border-radius: 1.75rem;
     padding: 2.25rem;
     text-align: center;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(25, 40, 55, 0.04);
   }
 
   .eventos-light-app .workspace-stat-card {
-    border-radius: 1.2rem;
-    padding: 1rem;
+    border-radius: 1.25rem;
+    padding: 1.1rem 1rem;
   }
 
   .eventos-light-app .workspace-stat-card svg,
   .eventos-light-app .workspace-card svg {
-    color: #52670F;
+    color: #7C3AED;
   }
 
   .eventos-light-app .workspace-chip {

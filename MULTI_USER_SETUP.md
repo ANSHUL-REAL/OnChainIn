@@ -58,17 +58,30 @@ Badge in the UI should say **Online · multi-user** (green).
 ## Step 4 — Deploy online (Vercel)
 
 1. Push repo to GitHub  
-2. [vercel.com](https://vercel.com) → Import project  
-3. Framework: Vite  
-4. Build: `npm run build` · Output: `dist`  
-5. **Environment variables** (same as `.env`):
+2. [vercel.com](https://vercel.com) → **Add New… → Project** → import `OnChainIn`  
+3. Framework preset: **Vite**  
+4. Build command: `npm run build` · Output directory: `dist`  
+5. **Settings → Environment Variables** (Production + Preview), same as `.env`:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_CARDANO_NETWORK=preprod`
+   - `VITE_CARDANO_NETWORK` = `preprod`
    - `VITE_BLOCKFROST_PROJECT_ID` (optional)
-6. Deploy → share the URL with teammates  
+6. **Deploy** → copy the `*.vercel.app` URL and share it  
 
 `vercel.json` already rewrites SPA routes to `index.html`.
+
+### Other free tools that help
+
+| Service | Use for OnChainIn |
+|---------|-------------------|
+| **Supabase** | Shared multi-user data (required for online team demo) |
+| **Vercel** | Host the website (recommended) |
+| **Blockfrost** | Cardano Preprod API project id (optional) |
+| **Lace wallet** | Sign attendance txs (each user installs locally) |
+| **Cardano faucet** | Free Preprod test ADA |
+| **GitHub** | Source code + Vercel auto-deploys on push |
+
+You do **not** need Firebase, MongoDB, or a custom backend for the MVP — Supabase `oci_store` + Vercel is enough.
 
 ## What syncs
 

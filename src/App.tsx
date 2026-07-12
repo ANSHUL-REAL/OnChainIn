@@ -94,6 +94,7 @@ export default function App() {
       <Route path="/dashboard/sponsor" element={<SponsorDashboard />} />
       <Route path="/dashboard/sponsor/events" element={<SponsorEvents />} />
       <Route path="/dashboard/sponsor/interests" element={<SponsorInterests />} />
+      <Route path="/dashboard/sponsor/pitch" element={<SponsorPitch />} />
     </Routes>
   );
 }

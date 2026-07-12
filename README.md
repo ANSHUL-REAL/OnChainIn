@@ -2,73 +2,74 @@
 
 **Event operations + Cardano-verified attendance**
 
-Hackathon rebuild of [EventOS](https://github.com/SOURABREDDY394/eventos) UI/flows with a **Cardano Preprod** proof layer (Mesh.js).
+Create events (with AI), manage applications, run QR/wallet check-in on **Cardano Preprod**, and issue certificates that can prove attendance on-chain.
 
-## Product story
+---
+
+## What it does
+
+| Role | You can… |
+|------|----------|
+| **Organizer** | AI create event · approve people · check-in desk · volunteers · sponsors · budget · certificates |
+| **Participant** | Browse · apply · tickets · Cardano check-in · certificates · proof passport |
+| **Volunteer** | Apply for roles · tasks · leaderboard · proof |
+| **Sponsor** | Discover events · submit interest · impact summary |
 
 ```text
-Create event → Participants apply → Organizer approves
-→ QR / manual / Cardano check-in → Certificates → Public proof
+Create event → Apply → Approve → Check-in (QR / Lace) → Certificate → Verify
 ```
 
-Roles:
+---
 
-- **Organizer** — create events, approve apps, check-in desk, volunteers, sponsors, budget, certificates  
-- **Participant** — browse, apply, tickets, certificates, passport  
-- **Volunteer** — apply for roles, tasks, leaderboard, proof  
-- **Sponsor** — discover events, submit interest  
-
-## Cardano layer
-
-- Mesh.js wallet connect (Lace, Eternl, Nami, …)
-- On-chain check-in: self-transfer + metadata label `674`
-- Attendance records store `tx_hash` + explorer link
-- No private keys stored
-
-## Stack
-
-| Layer | Tech |
-|-------|------|
-| UI | EventOS design (React, Tailwind, Radix/shadcn) |
-| State | localStorage store (demo-ready, no Supabase required) |
-| Chain | Mesh.js + Cardano Preprod |
-| Optional | Blockfrost / Supabase env vars if you add remote sync |
-
-## Quick start
+## Quick start (local)
 
 ```bash
 npm install
-cp .env.example .env   # then fill Supabase + optional Blockfrost
+cp .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open **http://localhost:3000**
 
-### Multi-user online (required for shared use)
+Without Supabase the app still works **on this browser only** (localStorage).
 
-See **[MULTI_USER_SETUP.md](./MULTI_USER_SETUP.md)** — 5 minutes:
+---
 
-1. Create free [Supabase](https://supabase.com) project  
-2. Run `supabase/migrations/001_onchainin_multiuser.sql` in SQL Editor  
-3. Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` in `.env`  
-4. Restart app → badge **Online · multi-user**  
-5. Deploy to Vercel with the same env vars  
+## Go multi-user online (Supabase + Vercel)
 
-Without Supabase the app still works **local-only** (one browser).
+Full guide: **[MULTI_USER_SETUP.md](./MULTI_USER_SETUP.md)**
 
-### Demo login
+### 1) Supabase (shared database) — ~5 min
 
-1. **Login** → your name + username + role (Participant / Organizer / …)  
-2. Create events, apply, approve, check in  
-3. Other users with the same Supabase project see the same data  
+1. Create a free project at [supabase.com](https://supabase.com)
+2. **SQL Editor** → paste & run  
+   `supabase/migrations/001_onchainin_multiuser.sql`
+3. **Settings → API** → copy:
+   - Project URL → `VITE_SUPABASE_URL`
+   - `anon` `public` key → `VITE_SUPABASE_ANON_KEY`
+4. Put them in `.env` (see `.env.example`)
+5. Restart `npm run dev`  
+   Header badge should say **Online · multi-user**
 
-### On-chain check-in (Cardano)
+### 2) Vercel (public website)
 
-1. Lace wallet on **Preprod** + [faucet](https://docs.cardano.org/cardano-testnets/tools/faucet)  
-2. Approved ticket → **Connect Wallet** → **Check In On-Chain**  
-3. Sign → explorer link  
+1. Push this repo to GitHub  
+2. [vercel.com](https://vercel.com) → **Import** this repo  
+3. Framework: **Vite** · Build: `npm run build` · Output: `dist`  
+4. Add the **same env vars** as `.env`  
+5. Deploy → share the URL  
 
-### Env
+`vercel.json` already rewrites SPA routes to `index.html`.
+
+### 3) Cardano check-in (optional but core for demos)
+
+1. Install **Lace** (or another CIP-30 wallet)  
+2. Switch wallet network to **Preprod**  
+3. Get test ADA from the [Preprod faucet](https://docs.cardano.org/cardano-testnets/tools/faucet)  
+4. Optional: [Blockfrost](https://blockfrost.io) Preprod project → `VITE_BLOCKFROST_PROJECT_ID`  
+5. On event day: participant opens **Tickets** → connect wallet → **Check in on-chain**
+
+### 4) Env reference
 
 ```env
 VITE_SUPABASE_URL=https://xxxx.supabase.co
@@ -77,19 +78,57 @@ VITE_CARDANO_NETWORK=preprod
 VITE_BLOCKFROST_PROJECT_ID=preprodXXXXXXXX
 ```
 
+| Variable | Required? | Purpose |
+|----------|-----------|---------|
+| `VITE_SUPABASE_URL` + `ANON_KEY` | For multi-user | Shared events/apps/check-ins |
+| `VITE_CARDANO_NETWORK` | Recommended | `preprod` for demos |
+| `VITE_BLOCKFROST_PROJECT_ID` | Optional | Chain queries via Blockfrost |
+
+---
+
+## Stack
+
+| Layer | Tech |
+|-------|------|
+| UI | React 19 · Vite · Tailwind · Mesh.js |
+| App data | localStorage + optional **Supabase** (`oci_store`) |
+| Chain | Cardano **Preprod** · Mesh · metadata label `674` |
+| Hosting | **Vercel** (or any static host of `dist`) |
+
+---
+
 ## Scripts
 
 ```bash
-npm run dev
-npm run build
-npm run preview
+npm run dev      # local
+npm run build    # production bundle → dist/
+npm run preview  # preview production build
 ```
 
-## Deploy
+---
 
-Vercel/Netlify: build `npm run build`, output `dist`. SPA rewrite → `index.html`.
+## Project layout (important folders)
+
+```text
+src/pages/          # Home, auth, dashboards, verify
+src/lib/cardano.ts  # Wallet + on-chain check-in
+src/lib/cloudSync.ts# Supabase multi-user sync
+supabase/migrations # SQL to run once in Supabase
+public/logo.png     # Brand mark
+```
+
+---
+
+## Demo login
+
+1. **Sign up / Sign in** with any name + username + role  
+2. Organizer creates an event (or AI create)  
+3. Participant applies → organizer approves  
+4. Check-in on event day → issue certificate → open verify link  
+
+---
 
 ## Credits
 
-UI & product model adapted from **EventOS** by [SOURABREDDY394](https://github.com/SOURABREDDY394/eventos).  
-Cardano proof layer: **OnChainIn** (IndiaCodex'26).
+UI/product flows adapted from [EventOS](https://github.com/SOURABREDDY394/eventos).  
+Cardano attendance proof: **OnChainIn**.
