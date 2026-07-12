@@ -1,7 +1,7 @@
 import type {
   Profile, Event, Registration, VolunteerApplication, VolunteerTask,
   SponsorPackage, SponsorInterest, BudgetItem, Certificate, PassportRecord, VolunteerRole, EventFormField, Attendance,
-  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry, WinnerSelfie
+  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry, WinnerSelfie, EventWinner, EventPrizePool
 } from '@/types';
 import { pushRemote, pullRemote } from '@/lib/persistence';
 import {
@@ -35,6 +35,8 @@ const STORAGE_KEYS = {
   certificates: 'OnChainIn_certificates_v2',
   passportRecords: 'OnChainIn_passport_records_v2',
   winnerSelfies: 'OnChainIn_winner_selfies_v2',
+  eventWinners: 'OnChainIn_event_winners_v2',
+  prizePools: 'OnChainIn_prize_pools_v2',
   currentUser: 'OnChainIn_current_user_v2',
   volunteerProfiles: 'OnChainIn_volunteer_profiles_v2',
   volunteerPoints: 'OnChainIn_volunteer_points_v2',
@@ -969,6 +971,142 @@ export const store = {
   getWinnerSelfieForEvent(eventId: string, userId: string): WinnerSelfie | undefined {
     return store.getWinnerSelfies().find((s) => s.event_id === eventId && s.user_id === userId);
   },
+  getEventWinners(eventId?: string): EventWinner[] {
+    const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
+    const list = eventId ? rows.filter((w) => w.event_id === eventId) : rows;
+    return list
+      .map((w) => ({ ...w, user: store.getProfileById(w.user_id) }))
+      .sort((a, b) => a.place - b.place);
+  },
+  getPrizePool(eventId: string): EventPrizePool | null {
+    const pools = getItem<EventPrizePool[]>(STORAGE_KEYS.prizePools, []);
+    return pools.find((p) => p.event_id === eventId) || null;
+  },
+  setPrizePool(eventId: string, totalAmount: number, currency: 'INR' | 'ADA' = 'INR', notes?: string): EventPrizePool {
+    const pools = getItem<EventPrizePool[]>(STORAGE_KEYS.prizePools, []);
+    const next: EventPrizePool = {
+      event_id: eventId,
+      total_amount: Math.max(0, totalAmount),
+      currency,
+      notes,
+      updated_at: new Date().toISOString(),
+    };
+    const idx = pools.findIndex((p) => p.event_id === eventId);
+    if (idx >= 0) pools[idx] = next;
+    else pools.push(next);
+    setItem(STORAGE_KEYS.prizePools, pools);
+    return next;
+  },
+  selectEventWinner(input: {
+    eventId: string;
+    userId: string;
+    place: number;
+    prizeLabel: string;
+    prizeAmount: number;
+    prizeCurrency?: 'INR' | 'ADA';
+    walletAddress?: string;
+  }): EventWinner {
+    const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
+    // One winner per place per event
+    const withoutSamePlace = rows.filter(
+      (w) => !(w.event_id === input.eventId && w.place === input.place && w.status === 'selected'),
+    );
+    // Don't overwrite paid winners for same place
+    const paidSamePlace = rows.find(
+      (w) => w.event_id === input.eventId && w.place === input.place && w.status === 'paid',
+    );
+    if (paidSamePlace) {
+      throw new Error(`Place #${input.place} is already paid out. Pick another place.`);
+    }
+    // Replace unselected/selected for same user on this event
+    const filtered = withoutSamePlace.filter(
+      (w) => !(w.event_id === input.eventId && w.user_id === input.userId && w.status === 'selected'),
+    );
+    const profile = store.getProfileById(input.userId);
+    const row: EventWinner = {
+      id: genId(),
+      event_id: input.eventId,
+      user_id: input.userId,
+      place: input.place,
+      prize_label: input.prizeLabel || `${input.place === 1 ? '1st' : input.place === 2 ? '2nd' : input.place === 3 ? '3rd' : `${input.place}th`} Prize`,
+      prize_amount: Math.max(0, input.prizeAmount),
+      prize_currency: input.prizeCurrency || 'INR',
+      wallet_address: input.walletAddress || profile?.cardano_address,
+      status: 'selected',
+      created_at: new Date().toISOString(),
+    };
+    filtered.push(row);
+    setItem(STORAGE_KEYS.eventWinners, filtered);
+
+    const event = store.getEventById(input.eventId);
+    store.createPassportRecord({
+      user_id: input.userId,
+      event_id: input.eventId,
+      record_type: 'certificate',
+      title: `${event?.title || 'Event'} · ${row.prize_label}`,
+      description: `Selected as place #${row.place} with prize ${row.prize_currency} ${row.prize_amount}`,
+      skills: ['Winner', row.prize_label],
+      hours: 0,
+      verified_at: new Date().toISOString(),
+    });
+    return { ...row, user: profile };
+  },
+  /**
+   * Mark prize as paid + record budget expense so organizers can track payouts.
+   */
+  payEventWinner(winnerId: string, paymentNote?: string): EventWinner {
+    const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
+    const idx = rows.findIndex((w) => w.id === winnerId);
+    if (idx < 0) throw new Error('Winner record not found');
+    if (rows[idx].status === 'paid') return { ...rows[idx], user: store.getProfileById(rows[idx].user_id) };
+
+    const winner = rows[idx];
+    const profile = store.getProfileById(winner.user_id);
+    const event = store.getEventById(winner.event_id);
+    const updated: EventWinner = {
+      ...winner,
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+      payment_note: paymentNote || winner.payment_note,
+    };
+    rows[idx] = updated;
+    setItem(STORAGE_KEYS.eventWinners, rows);
+
+    if (winner.prize_amount > 0) {
+      store.createBudgetItem({
+        event_id: winner.event_id,
+        type: 'expense',
+        title: `Prize payout: ${winner.prize_label} — ${profile?.full_name || 'Winner'}`,
+        amount: winner.prize_amount,
+        category: 'Prize money',
+        notes: paymentNote || `Place #${winner.place} · ${winner.prize_currency}`,
+      });
+    }
+
+    store.createPassportRecord({
+      user_id: winner.user_id,
+      event_id: winner.event_id,
+      record_type: 'certificate',
+      title: `${event?.title || 'Event'} · Prize paid (${winner.prize_label})`,
+      description: paymentNote || `Prize ${winner.prize_currency} ${winner.prize_amount} marked paid by organizer`,
+      skills: ['Prize', winner.prize_label],
+      hours: 0,
+      verified_at: new Date().toISOString(),
+    });
+
+    return { ...updated, user: profile };
+  },
+  removeEventWinner(winnerId: string) {
+    const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
+    const target = rows.find((w) => w.id === winnerId);
+    if (!target) return;
+    if (target.status === 'paid') throw new Error('Cannot remove a paid winner. Adjust budget manually if needed.');
+    setItem(
+      STORAGE_KEYS.eventWinners,
+      rows.filter((w) => w.id !== winnerId),
+    );
+  },
+
   saveWinnerSelfie(input: {
     eventId: string;
     userId: string;

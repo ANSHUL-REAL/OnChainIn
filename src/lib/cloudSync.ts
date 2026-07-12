@@ -72,6 +72,8 @@ export const CLOUD_COLLECTIONS = [
   'certificates',
   'passport_records',
   'winner_selfies',
+  'event_winners',
+  'prize_pools',
   'volunteer_profiles',
   'volunteer_points',
 ] as const

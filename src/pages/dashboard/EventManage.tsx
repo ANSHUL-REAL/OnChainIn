@@ -7,7 +7,7 @@ import { EventPoster } from '@/components/EventPoster';
 import store from '@/data/store';
 import { createLocalPosterDataUrl, uploadEventPoster } from '@/lib/eventPosterUpload';
 import { eventStatusBadgeClass, getEventDisplayStatus } from '@/lib/eventLifecycle';
-import { Users, QrCode, UserCheck, Award, Handshake, Wallet, ArrowRight, Calendar, MapPin, FileText, Plus, Trash2, ImagePlus, X } from 'lucide-react';
+import { Users, QrCode, UserCheck, Award, Handshake, Wallet, ArrowRight, Calendar, MapPin, FileText, Plus, Trash2, ImagePlus, X, Trophy } from 'lucide-react';
 import type { EventFormField } from '@/types';
 
 type EditableField = Omit<EventFormField, 'id' | 'event_id' | 'created_at'>;
@@ -39,6 +39,7 @@ export default function EventManage() {
   const budgetItems = store.getEventBudgetItems(event.id);
   const certs = store.getEventCertificates(event.id);
 
+  const winners = store.getEventWinners(event.id);
   const quickActions = [
     { icon: Users, label: 'Registrations', count: regs.length, path: 'registrations', color: 'text-blue-400' },
     { icon: QrCode, label: 'Attendance', count: attended.length, path: 'attendance', color: 'text-emerald-400' },
@@ -46,6 +47,7 @@ export default function EventManage() {
     { icon: Handshake, label: 'Sponsors', count: interests.length, path: 'sponsors', color: 'text-rose-400' },
     { icon: Wallet, label: 'Budget', count: budgetItems.length, path: 'budget', color: 'text-amber-400' },
     { icon: Award, label: 'Certificates', count: certs.length, path: 'certificates', color: 'text-cyan-400' },
+    { icon: Trophy, label: 'Winners & prizes', count: winners.length, path: 'winners', color: 'text-amber-500' },
   ];
 
   const addField = () => {

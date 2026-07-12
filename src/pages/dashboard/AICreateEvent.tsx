@@ -4,7 +4,8 @@ import { Bot, Calendar, CheckCircle2, ClipboardList, Handshake, Loader2, QrCode,
 import { DashboardLayout } from '@/components/DashboardLayout';
 import store from '@/data/store';
 import type { EventFormField } from '@/types';
-import { requireSupabase } from '@/lib/supabase';
+import { isCloudEnabled, requireSupabase } from '@/lib/supabase';
+import { generateEventDraftWithGroq, isGroqConfigured } from '@/lib/ai/groqEventDraft';
 
 type DraftField = Omit<EventFormField, 'id' | 'event_id' | 'created_at'>;
 
@@ -267,25 +268,46 @@ function isMissingSupabaseColumnError(error: { message?: string } | null) {
   return message.includes('column') && (message.includes('does not exist') || message.includes('schema cache'));
 }
 
-async function generateDraftFromGroq(prompt: string) {
-  const supabase = requireSupabase();
-  const { data, error } = await supabase.functions.invoke<EdgeEventDraft>('generate-event-draft', {
-    body: {
-      prompt,
-      currentDate: getCurrentDate(),
-      timezone,
-    },
-  });
+/**
+ * 1) Direct Groq (VITE_GROQ_API_KEY) — preferred for local + Vercel
+ * 2) Supabase Edge Function generate-event-draft — optional
+ * 3) Caller falls back to local parser
+ */
+async function generateDraftFromAI(prompt: string) {
+  const currentDate = getCurrentDate();
 
-  if (error) {
-    throw new Error(error.message || 'AI event generation is not configured or failed. Please try manual event creation.');
+  // Prefer real Groq API key in env
+  if (isGroqConfigured()) {
+    const data = await generateEventDraftWithGroq(prompt, { currentDate, timezone });
+    const draft = toDraft(data as EdgeEventDraft);
+    draft.analysis.warnings = [
+      ...(draft.analysis.warnings || []),
+      'Generated with Groq AI — review every field before publishing.',
+    ];
+    return draft;
   }
 
-  if (!data) {
-    throw new Error('AI event generation returned no draft. Please try manual event creation.');
+  // Optional Supabase Edge Function (if you deployed one with GROQ_API_KEY secret)
+  if (isCloudEnabled()) {
+    try {
+      const supabase = requireSupabase();
+      const { data, error } = await supabase.functions.invoke<EdgeEventDraft>('generate-event-draft', {
+        body: { prompt, currentDate, timezone },
+      });
+      if (error) throw new Error(error.message || 'Edge function failed');
+      if (!data) throw new Error('Edge function returned no draft');
+      return toDraft(data);
+    } catch (edgeErr) {
+      const msg = edgeErr instanceof Error ? edgeErr.message : String(edgeErr);
+      throw new Error(
+        `No VITE_GROQ_API_KEY and edge AI failed (${msg}). Add VITE_GROQ_API_KEY to .env from https://console.groq.com/keys`,
+      );
+    }
   }
 
-  return toDraft(data);
+  throw new Error(
+    'Add VITE_GROQ_API_KEY to .env (free key at https://console.groq.com/keys), then restart npm run dev / redeploy Vercel.',
+  );
 }
 
 async function saveDraftToSupabase(draft: EventDraft) {
@@ -409,11 +431,14 @@ export default function AICreateEvent() {
     }
     setLoading(true);
     try {
-      const nextDraft = await generateDraftFromGroq(promptToGenerate);
+      const nextDraft = await generateDraftFromAI(promptToGenerate);
       setDraft(nextDraft);
+      setError('');
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'AI event generation failed.';
+      // Local heuristic draft so organizers can still continue, with clear AI status
       setDraft(generateLocalDraftFromPrompt(promptToGenerate, reason));
+      setError(reason);
     } finally {
       setLoading(false);
     }
@@ -464,9 +489,22 @@ export default function AICreateEvent() {
             </span>
             <div>
               <p className="text-base font-black text-[#14150F]">Create an event by chatting</p>
-              <p className="text-xs text-[#5E6256]">Groq runs securely through a Supabase Edge Function. No Groq key is exposed in Vite.</p>
+              <p className="text-xs text-[#5E6256]">
+                {isGroqConfigured()
+                  ? 'Groq API key detected — real AI drafts enabled.'
+                  : 'Add VITE_GROQ_API_KEY in .env (console.groq.com) then restart for real AI drafts.'}
+              </p>
             </div>
           </div>
+          {!isGroqConfigured() && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Without a Groq key, generation uses a local template fallback. Get a free key at{' '}
+              <a className="font-bold underline" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+                console.groq.com/keys
+              </a>
+              , put it in <code className="font-mono">.env</code> as <code className="font-mono">VITE_GROQ_API_KEY=gsk_...</code>
+            </div>
+          )}
 
           <div className="rounded-[1.5rem] border border-[#E7E1D2] bg-[#F7F6EB] p-4 mb-4">
             <label className="text-xs font-black tracking-wide text-[#6A7D1A] mb-2 block">Describe your event</label>

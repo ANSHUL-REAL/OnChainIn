@@ -19,6 +19,7 @@ import EventVolunteers from '@/pages/dashboard/EventVolunteers';
 import EventSponsors from '@/pages/dashboard/EventSponsors';
 import EventBudget from '@/pages/dashboard/EventBudget';
 import EventCertificates from '@/pages/dashboard/EventCertificates';
+import EventWinners from '@/pages/dashboard/EventWinners';
 import OrganizerModuleIndex from '@/pages/dashboard/OrganizerModuleIndex';
 import SponsorPitch from '@/pages/dashboard/SponsorPitch';
 import ParticipantDashboard from '@/pages/dashboard/ParticipantDashboard';
@@ -67,6 +68,7 @@ export default function App() {
       <Route path="/dashboard/organizer/events/:id/sponsors" element={<EventSponsors />} />
       <Route path="/dashboard/organizer/events/:id/budget" element={<EventBudget />} />
       <Route path="/dashboard/organizer/events/:id/certificates" element={<EventCertificates />} />
+      <Route path="/dashboard/organizer/events/:id/winners" element={<EventWinners />} />
       <Route path="/dashboard/organizer/volunteers" element={<OrganizerModuleIndex />} />
       <Route path="/dashboard/organizer/sponsors" element={<OrganizerModuleIndex />} />
       <Route path="/dashboard/organizer/budget" element={<OrganizerModuleIndex />} />

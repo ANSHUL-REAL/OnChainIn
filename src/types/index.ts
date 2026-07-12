@@ -29,6 +29,35 @@ export interface WinnerSelfie {
   created_at: string;
 }
 
+/** Organizer-selected placement + prize for hackathon / event winners */
+export interface EventWinner {
+  id: string;
+  event_id: string;
+  user_id: string;
+  user?: Profile;
+  /** 1 = first, 2 = second, … */
+  place: number;
+  prize_label: string;
+  /** Prize money in INR (or unit of prize_currency) */
+  prize_amount: number;
+  prize_currency: 'INR' | 'ADA';
+  wallet_address?: string;
+  status: 'selected' | 'paid';
+  paid_at?: string;
+  /** UPI ref / bank note / Cardano tx hash */
+  payment_note?: string;
+  created_at: string;
+}
+
+/** Prize pool configured per event */
+export interface EventPrizePool {
+  event_id: string;
+  total_amount: number;
+  currency: 'INR' | 'ADA';
+  notes?: string;
+  updated_at: string;
+}
+
 export interface Event {
   id: string;
   organizer_id: string;
