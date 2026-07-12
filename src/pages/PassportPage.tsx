@@ -128,7 +128,7 @@ export default function PassportPage() {
 
             <aside className="passport-verify">
               <div className="passport-seal">
-                <img src="/logo.png" alt="OnChainIn" className="h-10 w-10 object-contain" />
+                <img src="/logo.png" alt="OnChainIn" className="h-10 w-10 object-contain bg-transparent" />
               </div>
               <p className="passport-kicker">What this proves</p>
               <h2>A real event history, not a self-claimed resume line.</h2>

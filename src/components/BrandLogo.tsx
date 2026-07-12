@@ -24,14 +24,15 @@ export function BrandLogo({
   linkToHome = true,
   textClassName = 'text-sm font-bold tracking-[0.14em] text-[#192837]',
 }: BrandLogoProps) {
+  // Transparent PNG mark only (no square/block background)
   const mark = (
     <img
       src="/logo.png"
       alt={variant === 'full' ? '' : 'OnChainIn'}
       width={size}
       height={size}
-      className="object-contain select-none"
-      style={{ width: size, height: size }}
+      className="object-contain select-none bg-transparent"
+      style={{ width: size, height: size, background: 'transparent' }}
       draggable={false}
     />
   )

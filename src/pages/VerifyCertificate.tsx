@@ -67,11 +67,11 @@ export default function VerifyCertificate() {
 
             <div className="relative px-6 py-10 sm:px-12 sm:py-12 text-center">
               {/* Brand mark */}
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-[#DCE8BE]">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center bg-transparent">
                 <img
                   src="/logo.png"
                   alt="OnChainIn"
-                  className="h-11 w-11 object-contain"
+                  className="h-12 w-12 object-contain bg-transparent"
                   draggable={false}
                 />
               </div>
@@ -230,7 +230,7 @@ export default function VerifyCertificate() {
           {/* Side panel */}
           <aside className="passport-verify">
             <div className="passport-seal">
-              <img src="/logo.png" alt="OnChainIn" className="h-11 w-11 object-contain" />
+              <img src="/logo.png" alt="OnChainIn" className="h-11 w-11 object-contain bg-transparent" />
               <span>{cert ? 'Valid' : 'Check'}</span>
             </div>
             <p className="passport-kicker">Verified by OnChainIn</p>
