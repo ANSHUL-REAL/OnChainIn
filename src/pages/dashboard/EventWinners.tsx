@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { DashboardLayout } from '@/components/DashboardLayout'
+import { CardanoAdaPay } from '@/components/CardanoAdaPay'
 import store from '@/data/store'
 import {
   Trophy,
-  IndianRupee,
   CheckCircle,
-  Loader2,
   Trash2,
-  Wallet,
   Users,
   ArrowLeft,
+  Blocks,
+  ExternalLink,
 } from 'lucide-react'
+import { explorerTxUrl, formatAda } from '@/lib/cardano'
 
 const PLACE_PRESETS = [
   { place: 1, label: '1st Prize', share: 0.5 },
@@ -24,10 +25,11 @@ export default function EventWinners() {
   const event = store.getEventById(id || '')
   const [, setVersion] = useState(0)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState<string | null>(null)
 
   const pool = event ? store.getPrizePool(event.id) : null
-  const [poolAmount, setPoolAmount] = useState(String(pool?.total_amount || ''))
+  const [poolAmount, setPoolAmount] = useState(
+    String(pool?.total_amount || event?.prize_pool_ada || ''),
+  )
   const [poolNotes, setPoolNotes] = useState(pool?.notes || '')
 
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -45,7 +47,7 @@ export default function EventWinners() {
   const selectedTotal = winners
     .filter((w) => w.status === 'selected')
     .reduce((s, w) => s + w.prize_amount, 0)
-  const poolTotal = pool?.total_amount || 0
+  const poolTotal = pool?.total_amount || event?.prize_pool_ada || 0
   const remaining = poolTotal - paidTotal - selectedTotal
 
   const attendeeOptions = useMemo(() => {
@@ -71,20 +73,20 @@ export default function EventWinners() {
   const savePool = () => {
     setError('')
     const amount = parseFloat(poolAmount) || 0
-    store.setPrizePool(event.id, amount, 'INR', poolNotes.trim() || undefined)
+    store.setPrizePool(event.id, amount, 'ADA', poolNotes.trim() || 'Prize pool (ADA)')
     setVersion((v) => v + 1)
   }
 
   const applyPresetAmounts = () => {
     const total = parseFloat(poolAmount) || poolTotal
     if (total <= 0) {
-      setError('Set a prize pool amount first')
+      setError('Set a prize pool amount (ADA) first')
       return
     }
     const preset = PLACE_PRESETS.find((p) => p.place === place)
     if (preset) {
       setPrizeLabel(preset.label)
-      setPrizeAmount(String(Math.round(total * preset.share)))
+      setPrizeAmount(String(Math.round(total * preset.share * 100) / 100))
     }
   }
 
@@ -101,7 +103,7 @@ export default function EventWinners() {
         place,
         prizeLabel: prizeLabel.trim() || `Place #${place}`,
         prizeAmount: parseFloat(prizeAmount) || 0,
-        prizeCurrency: 'INR',
+        prizeCurrency: 'ADA',
         walletAddress: walletAddress.trim() || undefined,
       })
       setSelectedUserId('')
@@ -109,20 +111,6 @@ export default function EventWinners() {
       setVersion((v) => v + 1)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not select winner')
-    }
-  }
-
-  const pay = async (winnerId: string) => {
-    setError('')
-    setBusy(winnerId)
-    try {
-      store.payEventWinner(winnerId, payNote.trim() || undefined)
-      setPayNote('')
-      setVersion((v) => v + 1)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Payout failed')
-    } finally {
-      setBusy(null)
     }
   }
 
@@ -137,7 +125,7 @@ export default function EventWinners() {
   }
 
   return (
-    <DashboardLayout title="Winners & prize money">
+    <DashboardLayout title="Winners & prize money (ADA)">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <Link
@@ -148,7 +136,8 @@ export default function EventWinners() {
           </Link>
           <h2 className="mt-1 text-lg font-bold text-[#192837]">{event.title}</h2>
           <p className="text-sm text-[#5E6256]">
-            Select placements from checked-in people, then mark prize money as paid (tracked in Budget).
+            Prizes are paid <strong>only in ADA</strong> on Cardano. Connect your organizer wallet and
+            send to the winner’s receive address.
           </p>
         </div>
       </div>
@@ -159,22 +148,24 @@ export default function EventWinners() {
         </div>
       )}
 
-      {/* Prize pool */}
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-sm lg:col-span-2">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C3AED]">Prize pool</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7C3AED]">
+            Prize pool (ADA)
+          </p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
             <label className="block flex-1">
-              <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Total pool (INR)</span>
+              <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Total pool (ADA)</span>
               <div className="flex items-center gap-2 rounded-xl border border-[#E7E1D2] bg-[#F9F8F1] px-3">
-                <IndianRupee className="h-4 w-4 text-[#5E6256]" />
+                <Blocks className="h-4 w-4 text-[#7C3AED]" />
                 <input
                   type="number"
                   min={0}
+                  step="0.1"
                   value={poolAmount}
                   onChange={(e) => setPoolAmount(e.target.value)}
                   className="w-full bg-transparent py-2.5 text-sm font-semibold text-[#192837] focus:outline-none"
-                  placeholder="50000"
+                  placeholder="100"
                 />
               </div>
             </label>
@@ -184,7 +175,7 @@ export default function EventWinners() {
                 value={poolNotes}
                 onChange={(e) => setPoolNotes(e.target.value)}
                 className="w-full rounded-xl border border-[#E7E1D2] bg-[#F9F8F1] px-3 py-2.5 text-sm text-[#192837] focus:outline-none"
-                placeholder="Sponsored prize pool / hackathon awards"
+                placeholder="Hackathon prize pool on Cardano"
               />
             </label>
             <button
@@ -199,24 +190,23 @@ export default function EventWinners() {
         <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
           <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
             <p className="text-[10px] font-bold uppercase text-[#5E6256]">Pool</p>
-            <p className="text-xl font-bold text-[#192837]">₹{poolTotal.toLocaleString()}</p>
+            <p className="text-xl font-bold text-[#192837]">{formatAda(poolTotal)}</p>
           </div>
           <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
             <p className="text-[10px] font-bold uppercase text-[#5E6256]">Allocated</p>
             <p className="text-xl font-bold text-amber-800">
-              ₹{(paidTotal + selectedTotal).toLocaleString()}
+              {formatAda(paidTotal + selectedTotal)}
             </p>
           </div>
           <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
             <p className="text-[10px] font-bold uppercase text-[#5E6256]">Remaining</p>
             <p className={`text-xl font-bold ${remaining < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-              ₹{remaining.toLocaleString()}
+              {formatAda(remaining)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Select winner */}
       <div className="mb-6 rounded-2xl border border-black/[0.06] bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <Trophy className="h-5 w-5 text-amber-600" />
@@ -233,9 +223,9 @@ export default function EventWinners() {
               <select
                 value={selectedUserId}
                 onChange={(e) => {
-                  const id = e.target.value
-                  setSelectedUserId(id)
-                  const opt = attendeeOptions.find((a) => a.id === id)
+                  const uid = e.target.value
+                  setSelectedUserId(uid)
+                  const opt = attendeeOptions.find((a) => a.id === uid)
                   if (opt?.address) setWalletAddress(opt.address)
                 }}
                 className="w-full rounded-xl border border-[#E7E1D2] bg-[#F9F8F1] px-3 py-2.5 text-sm font-semibold text-[#192837]"
@@ -277,10 +267,11 @@ export default function EventWinners() {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Prize amount (₹)</span>
+              <span className="mb-1 block text-xs font-semibold text-[#5E6256]">Prize (ADA)</span>
               <input
                 type="number"
-                min={0}
+                min={1}
+                step="0.1"
                 value={prizeAmount}
                 onChange={(e) => setPrizeAmount(e.target.value)}
                 className="w-full rounded-xl border border-[#E7E1D2] bg-[#F9F8F1] px-3 py-2.5 text-sm text-[#192837]"
@@ -288,12 +279,12 @@ export default function EventWinners() {
             </label>
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-xs font-semibold text-[#5E6256]">
-                Payout wallet / UPI note (optional)
+                Winner Cardano receive address
               </span>
               <input
                 value={walletAddress}
                 onChange={(e) => setWalletAddress(e.target.value)}
-                placeholder="addr_test1… or UPI id"
+                placeholder="addr_test1…"
                 className="w-full rounded-xl border border-[#E7E1D2] bg-[#F9F8F1] px-3 py-2.5 font-mono text-xs text-[#192837]"
               />
             </label>
@@ -303,7 +294,7 @@ export default function EventWinners() {
                 onClick={applyPresetAmounts}
                 className="rounded-full border border-[#E7E1D2] bg-[#F6F2EB] px-4 py-2 text-xs font-bold text-[#192837]"
               >
-                Suggest amount from pool (50/30/20)
+                Suggest from pool (50/30/20)
               </button>
               <button
                 type="button"
@@ -317,7 +308,6 @@ export default function EventWinners() {
         )}
       </div>
 
-      {/* Winners list */}
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-bold text-[#192837]">
           <Users className="h-4 w-4 text-[#7C3AED]" /> Selected winners ({winners.length})
@@ -335,53 +325,46 @@ export default function EventWinners() {
           No winners selected yet.
         </div>
       ) : (
-        <div className="space-y-3">
-          <label className="mb-2 block text-xs font-semibold text-[#5E6256]">
-            Payment note when marking paid (UPI ref / bank / ADA tx)
+        <div className="space-y-4">
+          <label className="block text-xs font-semibold text-[#5E6256]">
+            Optional note stored with payout (memo)
           </label>
           <input
             value={payNote}
             onChange={(e) => setPayNote(e.target.value)}
-            placeholder="e.g. UPI/123456 or Cardano tx hash"
-            className="mb-3 w-full max-w-xl rounded-xl border border-[#E7E1D2] bg-white px-3 py-2 text-sm"
+            placeholder="e.g. Finals champion"
+            className="mb-2 w-full max-w-xl rounded-xl border border-[#E7E1D2] bg-white px-3 py-2 text-sm"
           />
-          {winners.map((w) => (
-            <div
-              key={w.id}
-              className="flex flex-col gap-3 rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm sm:flex-row sm:items-center"
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-sm font-black text-amber-900">
-                #{w.place}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-[#192837]">{w.user?.full_name || 'Winner'}</p>
-                <p className="text-xs text-[#5E6256]">
-                  {w.prize_label} · ₹{w.prize_amount.toLocaleString()}
-                  {w.wallet_address ? ` · ${w.wallet_address.slice(0, 18)}…` : ''}
-                </p>
-                {w.status === 'paid' && (
-                  <p className="mt-1 text-[11px] font-semibold text-emerald-700">
-                    Paid {w.paid_at ? new Date(w.paid_at).toLocaleString() : ''}
-                    {w.payment_note ? ` · ${w.payment_note}` : ''}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {w.status === 'selected' ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={busy === w.id}
-                      onClick={() => void pay(w.id)}
-                      className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
-                    >
-                      {busy === w.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Wallet className="h-3 w-3" />
-                      )}
-                      Mark prize paid
-                    </button>
+          {winners.map((w) => {
+            const toAddr =
+              w.wallet_address || store.getProfileById(w.user_id)?.cardano_address || ''
+            return (
+              <div
+                key={w.id}
+                className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-sm font-black text-amber-900">
+                    #{w.place}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-[#192837]">{w.user?.full_name || 'Winner'}</p>
+                    <p className="text-xs text-[#5E6256]">
+                      {w.prize_label} · {formatAda(w.prize_amount)}
+                      {toAddr ? ` · ${toAddr.slice(0, 18)}…` : ' · no wallet yet'}
+                    </p>
+                    {w.status === 'paid' && w.tx_hash && (
+                      <a
+                        href={w.explorer_url || explorerTxUrl(w.tx_hash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700"
+                      >
+                        Paid on Cardano <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                  {w.status === 'selected' && (
                     <button
                       type="button"
                       onClick={() => remove(w.id)}
@@ -389,15 +372,50 @@ export default function EventWinners() {
                     >
                       <Trash2 className="h-3 w-3" /> Remove
                     </button>
-                  </>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
-                    <CheckCircle className="h-3 w-3" /> Paid
-                  </span>
+                  )}
+                  {w.status === 'paid' && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
+                      <CheckCircle className="h-3 w-3" /> Paid
+                    </span>
+                  )}
+                </div>
+                {w.status === 'selected' && (
+                  <div className="mt-3">
+                    {!toAddr ? (
+                      <p className="text-xs font-semibold text-amber-800">
+                        Winner must save a Cardano receive address before you can pay ADA.
+                      </p>
+                    ) : (
+                      <CardanoAdaPay
+                        label={`Pay ${formatAda(w.prize_amount)} prize on Cardano`}
+                        adaAmount={w.prize_amount}
+                        toAddress={toAddr}
+                        payload={{
+                          kind: 'prize',
+                          eventId: event.id,
+                          eventTitle: event.title,
+                          label: w.prize_label,
+                          toUserId: w.user_id,
+                          fromRole: 'organizer',
+                          note: payNote || w.prize_label,
+                        }}
+                        helperText="Organizer wallet signs and sends ADA to the winner address."
+                        onPaid={(result) => {
+                          store.payEventWinner(w.id, {
+                            paymentNote: payNote || undefined,
+                            txHash: result.txHash,
+                            explorerUrl: result.explorerUrl,
+                            toWallet: result.toAddress,
+                          })
+                          setVersion((v) => v + 1)
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </DashboardLayout>

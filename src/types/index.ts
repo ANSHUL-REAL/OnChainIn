@@ -29,7 +29,7 @@ export interface WinnerSelfie {
   created_at: string;
 }
 
-/** Organizer-selected placement + prize for hackathon / event winners */
+/** Organizer-selected placement + prize — paid only in ADA on Cardano */
 export interface EventWinner {
   id: string;
   event_id: string;
@@ -38,24 +38,43 @@ export interface EventWinner {
   /** 1 = first, 2 = second, … */
   place: number;
   prize_label: string;
-  /** Prize money in INR (or unit of prize_currency) */
+  /** Prize amount in ADA */
   prize_amount: number;
-  prize_currency: 'INR' | 'ADA';
+  prize_currency: 'ADA';
   wallet_address?: string;
   status: 'selected' | 'paid';
   paid_at?: string;
-  /** UPI ref / bank note / Cardano tx hash */
   payment_note?: string;
+  tx_hash?: string;
+  explorer_url?: string;
   created_at: string;
 }
 
-/** Prize pool configured per event */
+/** Prize pool configured per event (ADA only) */
 export interface EventPrizePool {
   event_id: string;
   total_amount: number;
-  currency: 'INR' | 'ADA';
+  currency: 'ADA';
   notes?: string;
   updated_at: string;
+}
+
+/** On-chain ADA payout to a volunteer */
+export interface VolunteerPayout {
+  id: string;
+  event_id: string;
+  volunteer_id: string;
+  volunteer?: Profile;
+  ada_amount: number;
+  reason: string;
+  points_snapshot?: number;
+  status: 'pending' | 'paid';
+  tx_hash?: string;
+  explorer_url?: string;
+  from_wallet?: string;
+  to_wallet?: string;
+  paid_at?: string;
+  created_at: string;
 }
 
 export interface Event {
@@ -73,6 +92,10 @@ export interface Event {
   poster_url?: string | null;
   max_participants: number;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
+  /** Participation fee in ADA (0 or omit = free). Paid on-chain to organizer. */
+  participation_fee_ada?: number;
+  /** Suggested prize pool in ADA (organizer tracks winners separately). */
+  prize_pool_ada?: number;
   created_at: string;
 }
 
@@ -89,6 +112,12 @@ export interface Registration {
   reviewed_at?: string | null;
   rejection_reason?: string | null;
   registered_at: string;
+  /** On-chain participation fee (ADA) */
+  fee_ada?: number;
+  fee_tx_hash?: string;
+  fee_explorer_url?: string;
+  fee_wallet_address?: string;
+  fee_paid_at?: string;
 }
 
 export interface EventFormField {
@@ -198,6 +227,12 @@ export interface SponsorInterest {
   message?: string;
   status: 'new' | 'contacted' | 'confirmed' | 'rejected';
   created_at: string;
+  /** On-chain sponsorship payment in ADA */
+  ada_amount?: number;
+  tx_hash?: string;
+  explorer_url?: string;
+  from_wallet?: string;
+  paid_at?: string;
 }
 
 export interface BudgetItem {
@@ -208,6 +243,10 @@ export interface BudgetItem {
   amount: number;
   category?: string;
   notes?: string;
+  /** Default ADA for Cardano-native ledgers */
+  currency?: 'ADA' | 'INR';
+  tx_hash?: string;
+  explorer_url?: string;
   created_at: string;
 }
 

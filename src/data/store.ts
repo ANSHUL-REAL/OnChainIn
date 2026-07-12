@@ -1,7 +1,7 @@
 import type {
   Profile, Event, Registration, VolunteerApplication, VolunteerTask,
   SponsorPackage, SponsorInterest, BudgetItem, Certificate, PassportRecord, VolunteerRole, EventFormField, Attendance,
-  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry, WinnerSelfie, EventWinner, EventPrizePool
+  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry, WinnerSelfie, EventWinner, EventPrizePool, VolunteerPayout
 } from '@/types';
 import { pushRemote, pullRemote } from '@/lib/persistence';
 import {
@@ -37,6 +37,7 @@ const STORAGE_KEYS = {
   winnerSelfies: 'OnChainIn_winner_selfies_v2',
   eventWinners: 'OnChainIn_event_winners_v2',
   prizePools: 'OnChainIn_prize_pools_v2',
+  volunteerPayouts: 'OnChainIn_volunteer_payouts_v2',
   currentUser: 'OnChainIn_current_user_v2',
   volunteerProfiles: 'OnChainIn_volunteer_profiles_v2',
   volunteerPoints: 'OnChainIn_volunteer_points_v2',
@@ -982,12 +983,12 @@ export const store = {
     const pools = getItem<EventPrizePool[]>(STORAGE_KEYS.prizePools, []);
     return pools.find((p) => p.event_id === eventId) || null;
   },
-  setPrizePool(eventId: string, totalAmount: number, currency: 'INR' | 'ADA' = 'INR', notes?: string): EventPrizePool {
+  setPrizePool(eventId: string, totalAmount: number, _currency: 'ADA' = 'ADA', notes?: string): EventPrizePool {
     const pools = getItem<EventPrizePool[]>(STORAGE_KEYS.prizePools, []);
     const next: EventPrizePool = {
       event_id: eventId,
       total_amount: Math.max(0, totalAmount),
-      currency,
+      currency: 'ADA',
       notes,
       updated_at: new Date().toISOString(),
     };
@@ -995,7 +996,161 @@ export const store = {
     if (idx >= 0) pools[idx] = next;
     else pools.push(next);
     setItem(STORAGE_KEYS.prizePools, pools);
+    // Mirror on event for discovery UIs
+    store.updateEvent(eventId, { prize_pool_ada: next.total_amount });
     return next;
+  },
+  /** Organizer receive address for fees / sponsorship */
+  getOrganizerCardanoAddress(eventId: string): string | undefined {
+    const event = store.getEventById(eventId);
+    if (!event) return undefined;
+    return store.getProfileById(event.organizer_id)?.cardano_address?.trim() || undefined;
+  },
+  recordRegistrationFeePayment(
+    registrationId: string,
+    payment: {
+      adaAmount: number;
+      txHash: string;
+      explorerUrl: string;
+      walletAddress: string;
+    },
+  ): Registration | undefined {
+    const regs = store.getRegistrations();
+    const idx = regs.findIndex((r) => r.id === registrationId);
+    if (idx < 0) return undefined;
+    regs[idx] = {
+      ...regs[idx],
+      fee_ada: payment.adaAmount,
+      fee_tx_hash: payment.txHash,
+      fee_explorer_url: payment.explorerUrl,
+      fee_wallet_address: payment.walletAddress,
+      fee_paid_at: new Date().toISOString(),
+    };
+    setItem(STORAGE_KEYS.registrations, regs);
+    const reg = regs[idx];
+    const event = store.getEventById(reg.event_id);
+    store.createBudgetItem({
+      event_id: reg.event_id,
+      type: 'income',
+      title: `Participation fee (ADA) — ${store.getProfileById(reg.participant_id)?.full_name || 'Participant'}`,
+      amount: payment.adaAmount,
+      category: 'Cardano fees',
+      currency: 'ADA',
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      notes: `On-chain fee for ${event?.title || reg.event_id}`,
+    });
+    return reg;
+  },
+  recordSponsorAdaPayment(
+    interestId: string,
+    payment: {
+      adaAmount: number;
+      txHash: string;
+      explorerUrl: string;
+      fromWallet: string;
+    },
+  ): SponsorInterest | undefined {
+    const interests = store.getSponsorInterests();
+    const idx = interests.findIndex((si) => si.id === interestId);
+    if (idx < 0) return undefined;
+    interests[idx] = {
+      ...interests[idx],
+      ada_amount: payment.adaAmount,
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      from_wallet: payment.fromWallet,
+      paid_at: new Date().toISOString(),
+      status: 'confirmed',
+    };
+    setItem(STORAGE_KEYS.sponsorInterests, interests);
+    const si = interests[idx];
+    const event = store.getEventById(si.event_id);
+    store.createBudgetItem({
+      event_id: si.event_id,
+      type: 'income',
+      title: `Sponsorship (ADA) — ${si.company_name || si.sponsorship_type || 'Sponsor'}`,
+      amount: payment.adaAmount,
+      category: 'Cardano sponsorship',
+      currency: 'ADA',
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      notes: event?.title,
+    });
+    return interests[idx];
+  },
+  getVolunteerPayouts(eventId?: string): VolunteerPayout[] {
+    const rows = getItem<VolunteerPayout[]>(STORAGE_KEYS.volunteerPayouts, []);
+    const list = eventId ? rows.filter((p) => p.event_id === eventId) : rows;
+    return list.map((p) => ({ ...p, volunteer: store.getProfileById(p.volunteer_id) }));
+  },
+  createVolunteerPayout(input: {
+    eventId: string;
+    volunteerId: string;
+    adaAmount: number;
+    reason: string;
+    pointsSnapshot?: number;
+  }): VolunteerPayout {
+    const rows = getItem<VolunteerPayout[]>(STORAGE_KEYS.volunteerPayouts, []);
+    const row: VolunteerPayout = {
+      id: genId(),
+      event_id: input.eventId,
+      volunteer_id: input.volunteerId,
+      ada_amount: Math.max(0, input.adaAmount),
+      reason: input.reason,
+      points_snapshot: input.pointsSnapshot,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    rows.push(row);
+    setItem(STORAGE_KEYS.volunteerPayouts, rows);
+    return { ...row, volunteer: store.getProfileById(input.volunteerId) };
+  },
+  markVolunteerPayoutPaid(
+    payoutId: string,
+    payment: {
+      txHash: string;
+      explorerUrl: string;
+      fromWallet: string;
+      toWallet: string;
+    },
+  ): VolunteerPayout {
+    const rows = getItem<VolunteerPayout[]>(STORAGE_KEYS.volunteerPayouts, []);
+    const idx = rows.findIndex((p) => p.id === payoutId);
+    if (idx < 0) throw new Error('Payout not found');
+    const vol = store.getProfileById(rows[idx].volunteer_id);
+    rows[idx] = {
+      ...rows[idx],
+      status: 'paid',
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      from_wallet: payment.fromWallet,
+      to_wallet: payment.toWallet,
+      paid_at: new Date().toISOString(),
+    };
+    setItem(STORAGE_KEYS.volunteerPayouts, rows);
+    store.createBudgetItem({
+      event_id: rows[idx].event_id,
+      type: 'expense',
+      title: `Volunteer payout (ADA) — ${vol?.full_name || 'Volunteer'}`,
+      amount: rows[idx].ada_amount,
+      category: 'Cardano volunteer pay',
+      currency: 'ADA',
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      notes: rows[idx].reason,
+    });
+    store.createPassportRecord({
+      user_id: rows[idx].volunteer_id,
+      event_id: rows[idx].event_id,
+      record_type: 'volunteer',
+      title: `ADA payout · ${rows[idx].ada_amount} ₳`,
+      description: rows[idx].reason,
+      skills: ['Cardano payout'],
+      hours: 0,
+      verified_at: new Date().toISOString(),
+    });
+    return { ...rows[idx], volunteer: vol };
   },
   selectEventWinner(input: {
     eventId: string;
@@ -1003,7 +1158,7 @@ export const store = {
     place: number;
     prizeLabel: string;
     prizeAmount: number;
-    prizeCurrency?: 'INR' | 'ADA';
+    prizeCurrency?: 'ADA';
     walletAddress?: string;
   }): EventWinner {
     const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
@@ -1030,7 +1185,7 @@ export const store = {
       place: input.place,
       prize_label: input.prizeLabel || `${input.place === 1 ? '1st' : input.place === 2 ? '2nd' : input.place === 3 ? '3rd' : `${input.place}th`} Prize`,
       prize_amount: Math.max(0, input.prizeAmount),
-      prize_currency: input.prizeCurrency || 'INR',
+      prize_currency: 'ADA',
       wallet_address: input.walletAddress || profile?.cardano_address,
       status: 'selected',
       created_at: new Date().toISOString(),
@@ -1044,21 +1199,30 @@ export const store = {
       event_id: input.eventId,
       record_type: 'certificate',
       title: `${event?.title || 'Event'} · ${row.prize_label}`,
-      description: `Selected as place #${row.place} with prize ${row.prize_currency} ${row.prize_amount}`,
-      skills: ['Winner', row.prize_label],
+      description: `Selected as place #${row.place} with prize ${row.prize_amount} ADA (pay on Cardano)`,
+      skills: ['Winner', row.prize_label, 'Cardano'],
       hours: 0,
       verified_at: new Date().toISOString(),
     });
     return { ...row, user: profile };
   },
   /**
-   * Mark prize as paid + record budget expense so organizers can track payouts.
+   * Record on-chain ADA prize payout (must include tx hash from wallet).
    */
-  payEventWinner(winnerId: string, paymentNote?: string): EventWinner {
+  payEventWinner(
+    winnerId: string,
+    payment: {
+      paymentNote?: string;
+      txHash: string;
+      explorerUrl: string;
+      toWallet?: string;
+    },
+  ): EventWinner {
     const rows = getItem<EventWinner[]>(STORAGE_KEYS.eventWinners, []);
     const idx = rows.findIndex((w) => w.id === winnerId);
     if (idx < 0) throw new Error('Winner record not found');
     if (rows[idx].status === 'paid') return { ...rows[idx], user: store.getProfileById(rows[idx].user_id) };
+    if (!payment.txHash?.trim()) throw new Error('Cardano tx hash is required — pay prize with a wallet transaction');
 
     const winner = rows[idx];
     const profile = store.getProfileById(winner.user_id);
@@ -1067,7 +1231,11 @@ export const store = {
       ...winner,
       status: 'paid',
       paid_at: new Date().toISOString(),
-      payment_note: paymentNote || winner.payment_note,
+      payment_note: payment.paymentNote || winner.payment_note,
+      tx_hash: payment.txHash,
+      explorer_url: payment.explorerUrl,
+      wallet_address: payment.toWallet || winner.wallet_address,
+      prize_currency: 'ADA',
     };
     rows[idx] = updated;
     setItem(STORAGE_KEYS.eventWinners, rows);
@@ -1076,10 +1244,13 @@ export const store = {
       store.createBudgetItem({
         event_id: winner.event_id,
         type: 'expense',
-        title: `Prize payout: ${winner.prize_label} — ${profile?.full_name || 'Winner'}`,
+        title: `Prize (ADA): ${winner.prize_label} — ${profile?.full_name || 'Winner'}`,
         amount: winner.prize_amount,
-        category: 'Prize money',
-        notes: paymentNote || `Place #${winner.place} · ${winner.prize_currency}`,
+        category: 'Cardano prizes',
+        currency: 'ADA',
+        tx_hash: payment.txHash,
+        explorer_url: payment.explorerUrl,
+        notes: payment.paymentNote || `Place #${winner.place} on-chain`,
       });
     }
 
@@ -1087,9 +1258,9 @@ export const store = {
       user_id: winner.user_id,
       event_id: winner.event_id,
       record_type: 'certificate',
-      title: `${event?.title || 'Event'} · Prize paid (${winner.prize_label})`,
-      description: paymentNote || `Prize ${winner.prize_currency} ${winner.prize_amount} marked paid by organizer`,
-      skills: ['Prize', winner.prize_label],
+      title: `${event?.title || 'Event'} · Prize paid on Cardano (${winner.prize_label})`,
+      description: `${winner.prize_amount} ADA · tx ${payment.txHash}`,
+      skills: ['Prize', 'Cardano', winner.prize_label],
       hours: 0,
       verified_at: new Date().toISOString(),
     });

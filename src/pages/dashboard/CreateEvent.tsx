@@ -18,6 +18,9 @@ export default function CreateEvent() {
   const [venue, setVenue] = useState('');
   const [city, setCity] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('100');
+  const [cardanoAddress, setCardanoAddress] = useState(user?.cardano_address || '');
+  const [participationFeeAda, setParticipationFeeAda] = useState('0');
+  const [prizePoolAda, setPrizePoolAda] = useState('0');
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState('');
   const [error, setError] = useState('');
@@ -59,7 +62,13 @@ export default function CreateEvent() {
           posterUrl = await createLocalPosterDataUrl(posterFile);
         }
       }
-      store.createEvent({
+      const wallet = cardanoAddress.trim();
+      if (wallet.length >= 20) {
+        store.updateProfile(user.id, { cardano_address: wallet });
+      }
+      const fee = Math.max(0, parseFloat(participationFeeAda) || 0);
+      const pool = Math.max(0, parseFloat(prizePoolAda) || 0);
+      const created = store.createEvent({
         organizer_id: user.id,
         title,
         slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
@@ -72,8 +81,11 @@ export default function CreateEvent() {
         city,
         poster_url: posterUrl,
         max_participants: parseInt(maxParticipants) || 100,
+        participation_fee_ada: fee,
+        prize_pool_ada: pool,
         status: 'published',
       });
+      if (pool > 0) store.setPrizePool(created.id, pool, 'ADA', 'Prize pool (ADA)');
       setSuccess('Event created successfully.');
       navigate('/dashboard/organizer/events');
     } catch (err) {
@@ -176,6 +188,52 @@ export default function CreateEvent() {
             <label className="text-xs text-white/50 mb-1.5 block">Max Participants</label>
             <input type="number" value={maxParticipants} onChange={e => setMaxParticipants(e.target.value)} disabled={submitting}
               className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#E49B3A]/50" />
+          </div>
+
+          <div className="rounded-xl border border-[#7C3AED]/35 bg-[#7C3AED]/10 p-4 space-y-3">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-[#C4B5FD]">Cardano receive wallet</p>
+            <p className="text-[11px] leading-5 text-white/55">
+              Paste your Preprod receive address (<span className="font-mono">addr_test1…</span>). Sponsors send ADA here after you approve them. Also used for participation fees.
+            </p>
+            <div>
+              <label className="text-xs text-white/50 mb-1.5 block">Your Cardano wallet address *</label>
+              <input
+                value={cardanoAddress}
+                onChange={e => setCardanoAddress(e.target.value)}
+                disabled={submitting}
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-xs font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#7C3AED]/50"
+                placeholder="addr_test1qz…"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block">Participation fee (ADA)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={participationFeeAda}
+                  onChange={e => setParticipationFeeAda(e.target.value)}
+                  disabled={submitting}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
+                  placeholder="0 = free"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block">Prize pool (ADA)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={prizePoolAda}
+                  onChange={e => setPrizePoolAda(e.target.value)}
+                  disabled={submitting}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-[#7C3AED]/50"
+                  placeholder="0"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="pt-4 flex gap-3">

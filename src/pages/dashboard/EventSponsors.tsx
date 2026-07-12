@@ -1,67 +1,147 @@
-import { useState } from 'react';
-import { useParams } from 'react-router';
-import { DashboardLayout } from '@/components/DashboardLayout';
-import store from '@/data/store';
-import { Plus, Handshake } from 'lucide-react';
+import { useState } from 'react'
+import { useParams } from 'react-router'
+import { DashboardLayout } from '@/components/DashboardLayout'
+import store from '@/data/store'
+import { Plus, Handshake, Blocks, ExternalLink, CheckCircle } from 'lucide-react'
+import { explorerTxUrl, formatAda, truncateMiddle } from '@/lib/cardano'
 
 export default function EventSponsors() {
-  const { id } = useParams<{ id: string }>();
-  const event = store.getEventById(id || '');
-  if (!event) return <DashboardLayout title="Sponsors"><p className="text-white/40">Event not found</p></DashboardLayout>;
+  const { id } = useParams<{ id: string }>()
+  const event = store.getEventById(id || '')
+  const [, setVersion] = useState(0)
+  if (!event) {
+    return (
+      <DashboardLayout title="Sponsors">
+        <p className="text-[#5E6256]">Event not found</p>
+      </DashboardLayout>
+    )
+  }
 
-  const packages = store.getEventSponsorPackages(event.id);
-  const interests = store.getEventSponsorInterests(event.id);
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState('');
-  const [desc, setDesc] = useState('');
-  const [amount, setAmount] = useState('');
-  const [level, setLevel] = useState<'standard' | 'premium' | 'platinum'>('standard');
+  const packages = store.getEventSponsorPackages(event.id)
+  const interests = store.getEventSponsorInterests(event.id)
+  const organizerAddr = store.getOrganizerCardanoAddress(event.id)
+  const [showForm, setShowForm] = useState(false)
+  const [title, setTitle] = useState('')
+  const [desc, setDesc] = useState('')
+  const [amount, setAmount] = useState('')
+  const [level, setLevel] = useState<'standard' | 'premium' | 'platinum'>('standard')
 
   const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    store.createSponsorPackage({ event_id: event.id, title, description: desc, amount: parseFloat(amount) || 0, benefits: [], visibility_level: level });
-    setShowForm(false); setTitle(''); setDesc(''); setAmount(''); setLevel('standard');
-  };
+    e.preventDefault()
+    store.createSponsorPackage({
+      event_id: event.id,
+      title,
+      description: desc,
+      amount: parseFloat(amount) || 0,
+      benefits: ['On-chain ADA sponsorship'],
+      visibility_level: level,
+    })
+    setShowForm(false)
+    setTitle('')
+    setDesc('')
+    setAmount('')
+    setLevel('standard')
+    setVersion((v) => v + 1)
+  }
 
   const updateStatus = (interestId: string, status: 'new' | 'contacted' | 'confirmed' | 'rejected') => {
-    store.updateSponsorInterest(interestId, { status });
-  };
+    store.updateSponsorInterest(interestId, { status })
+    setVersion((v) => v + 1)
+  }
 
   return (
     <DashboardLayout title="Sponsors">
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="mb-5 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4">
+        <div className="flex items-start gap-3">
+          <Blocks className="mt-0.5 h-5 w-5 text-[#7C3AED]" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[#192837]">Cardano sponsorship payments</p>
+            <p className="mt-1 text-xs leading-5 text-[#5E6256]">
+              1) Save your receive address under Event manage → Cardano settings. 2) Approve a sponsor interest
+              (Contacted / Confirm). 3) Sponsor pays ADA on-chain to your address from their dashboard.
+            </p>
+            {organizerAddr ? (
+              <p className="mt-2 font-mono text-[11px] font-semibold text-[#7C3AED]">
+                Receiving: {truncateMiddle(organizerAddr, 16, 12)}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs font-semibold text-amber-800">
+                No wallet saved yet — open Event manage and add your Cardano address first.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-2">
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-white">Packages</h2>
-            <button onClick={() => setShowForm(!showForm)} className="text-[10px] px-2 py-1 rounded bg-[#E49B3A]/20 text-[#E49B3A] flex items-center gap-1"><Plus className="w-3 h-3" /> Add</button>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[#192837]">Packages (ADA)</h2>
+            <button
+              type="button"
+              onClick={() => setShowForm(!showForm)}
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800"
+            >
+              <Plus className="h-3 w-3" /> Add
+            </button>
           </div>
 
           {showForm && (
-            <form onSubmit={handleCreate} className="glass-card rounded-lg p-3 mb-3 space-y-2">
-              <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Package name" className="w-full bg-white/5 border border-white/10 rounded py-1.5 px-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E49B3A]/50" />
-              <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description" className="w-full bg-white/5 border border-white/10 rounded py-1.5 px-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E49B3A]/50" />
+            <form onSubmit={handleCreate} className="mb-3 space-y-2 rounded-xl border border-[#E7E1D2] bg-white p-3 shadow-sm">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                placeholder="Package name"
+                className="w-full rounded-lg border border-[#E7E1D2] px-2 py-1.5 text-xs"
+              />
+              <input
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                placeholder="Description"
+                className="w-full rounded-lg border border-[#E7E1D2] px-2 py-1.5 text-xs"
+              />
               <div className="flex gap-2">
-                <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required placeholder="Amount" className="w-24 bg-white/5 border border-white/10 rounded py-1.5 px-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E49B3A]/50" />
-                <select value={level} onChange={e => setLevel(e.target.value as any)} className="flex-1 bg-white/5 border border-white/10 rounded py-1.5 px-2 text-xs text-white focus:outline-none focus:border-[#E49B3A]/50">
+                <input
+                  type="number"
+                  min={1}
+                  step="0.1"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  placeholder="ADA amount"
+                  className="w-28 rounded-lg border border-[#E7E1D2] px-2 py-1.5 text-xs"
+                />
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as 'standard' | 'premium' | 'platinum')}
+                  className="flex-1 rounded-lg border border-[#E7E1D2] px-2 py-1.5 text-xs"
+                >
                   <option value="standard">Standard</option>
                   <option value="premium">Premium</option>
                   <option value="platinum">Platinum</option>
                 </select>
               </div>
-              <button type="submit" className="gold-btn text-[10px] py-1.5 px-3">Create</button>
+              <button type="submit" className="gold-btn px-3 py-1.5 text-[10px]">
+                Create ADA package
+              </button>
             </form>
           )}
 
-          {packages.length === 0 ? <p className="text-sm text-white/30 text-center py-4">No packages yet</p> : (
+          {packages.length === 0 ? (
+            <p className="py-4 text-center text-sm text-[#5E6256]">No packages yet</p>
+          ) : (
             <div className="space-y-2">
               {packages.map((pkg) => (
-                <div key={pkg.id} className="glass-card rounded-lg p-3">
+                <div key={pkg.id} className="rounded-xl border border-[#E7E1D2] bg-white p-3 shadow-sm">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-white">{pkg.title}</p>
-                    <span className="text-sm font-bold text-[#E49B3A]">Rs.{pkg.amount.toLocaleString()}</span>
+                    <p className="text-sm font-semibold text-[#192837]">{pkg.title}</p>
+                    <span className="text-sm font-bold text-[#7C3AED]">{formatAda(pkg.amount)}</span>
                   </div>
-                  <p className="text-[10px] text-white/30 mt-0.5">{pkg.description}</p>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full mt-1 inline-block ${pkg.visibility_level === 'platinum' ? 'bg-purple-500/20 text-purple-400' : pkg.visibility_level === 'premium' ? 'bg-[#E49B3A]/20 text-[#E49B3A]' : 'bg-white/5 text-white/30'}`}>{pkg.visibility_level}</span>
+                  <p className="mt-0.5 text-[10px] text-[#5E6256]">{pkg.description}</p>
+                  <span className="mt-1 inline-block rounded-full bg-[#F2F2EE] px-1.5 py-0.5 text-[9px] font-bold capitalize text-[#5E6256]">
+                    {pkg.visibility_level}
+                  </span>
                 </div>
               ))}
             </div>
@@ -69,25 +149,80 @@ export default function EventSponsors() {
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-white mb-3">Sponsor Interests ({interests.length})</h2>
-          {interests.length === 0 ? <p className="text-sm text-white/30 text-center py-4">No interests yet</p> : (
+          <h2 className="mb-3 text-sm font-bold text-[#192837]">Sponsor interests ({interests.length})</h2>
+          {interests.length === 0 ? (
+            <p className="py-4 text-center text-sm text-[#5E6256]">No interests yet</p>
+          ) : (
             <div className="space-y-2">
               {interests.map((si) => (
-                <div key={si.id} className="glass-card rounded-lg p-3">
+                <div key={si.id} className="rounded-xl border border-[#E7E1D2] bg-white p-3 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center"><Handshake className="w-4 h-4 text-rose-400" /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{si.company_name || 'Unknown'}</p>
-                      <p className="text-[10px] text-white/30">{si.sponsor?.full_name} &bull; {si.sponsorship_type || si.package?.title || 'General Sponsorship'}</p>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50">
+                      <Handshake className="h-4 w-4 text-rose-500" />
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${si.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' : si.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>{si.status}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-[#192837]">
+                        {si.company_name || 'Unknown'}
+                      </p>
+                      <p className="text-[10px] text-[#5E6256]">
+                        {si.sponsor?.full_name} · {si.sponsorship_type || si.package?.title || 'General'}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${
+                        si.status === 'confirmed'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : si.status === 'rejected'
+                            ? 'bg-red-50 text-red-600'
+                            : 'bg-amber-50 text-amber-800'
+                      }`}
+                    >
+                      {si.status}
+                    </span>
                   </div>
-                  <p className="text-[10px] text-white/20 mt-1">{si.contribution_details || si.message}</p>
-                  {si.status === 'new' && (
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={() => updateStatus(si.id, 'contacted')} className="text-[10px] px-2 py-1 rounded bg-blue-500/20 text-blue-400">Mark Contacted</button>
-                      <button onClick={() => updateStatus(si.id, 'confirmed')} className="text-[10px] px-2 py-1 rounded bg-emerald-500/20 text-emerald-400">Confirm</button>
+                  <p className="mt-1 text-[10px] text-[#5E6256]">{si.contribution_details || si.message}</p>
+                  {si.tx_hash && (
+                    <a
+                      href={si.explorer_url || explorerTxUrl(si.tx_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[#7C3AED]"
+                    >
+                      <CheckCircle className="h-3 w-3" /> Paid {formatAda(si.ada_amount || 0)} on Cardano{' '}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                  {(si.status === 'new' || si.status === 'contacted') && !si.tx_hash && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {si.status === 'new' && (
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(si.id, 'contacted')}
+                          className="rounded bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700"
+                        >
+                          Mark contacted
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(si.id, 'confirmed')}
+                        className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700"
+                      >
+                        Approve for ADA payment
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(si.id, 'rejected')}
+                        className="rounded bg-red-50 px-2 py-1 text-[10px] font-bold text-red-600"
+                      >
+                        Reject
+                      </button>
                     </div>
+                  )}
+                  {si.status === 'confirmed' && !si.tx_hash && (
+                    <p className="mt-2 text-[10px] font-semibold text-emerald-800">
+                      Approved — sponsor can now pay ADA from My Interests.
+                    </p>
                   )}
                 </div>
               ))}
@@ -96,5 +231,5 @@ export default function EventSponsors() {
         </div>
       </div>
     </DashboardLayout>
-  );
+  )
 }
