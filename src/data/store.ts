@@ -1,7 +1,7 @@
 import type {
   Profile, Event, Registration, VolunteerApplication, VolunteerTask,
   SponsorPackage, SponsorInterest, BudgetItem, Certificate, PassportRecord, VolunteerRole, EventFormField, Attendance,
-  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry
+  VolunteerProfile, VolunteerPointsEntry, LeaderboardEntry, WinnerSelfie
 } from '@/types';
 import { pushRemote, pullRemote } from '@/lib/persistence';
 import {
@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
   budgetItems: 'OnChainIn_budget_items_v2',
   certificates: 'OnChainIn_certificates_v2',
   passportRecords: 'OnChainIn_passport_records_v2',
+  winnerSelfies: 'OnChainIn_winner_selfies_v2',
   currentUser: 'OnChainIn_current_user_v2',
   volunteerProfiles: 'OnChainIn_volunteer_profiles_v2',
   volunteerPoints: 'OnChainIn_volunteer_points_v2',
@@ -285,6 +286,27 @@ export const store = {
   },
   getProfileById(id: string): Profile | undefined {
     return store.getProfiles().find(p => p.id === id);
+  },
+  updateProfile(id: string, patch: Partial<Profile>): Profile | null {
+    const profiles = getItem<Profile[]>(STORAGE_KEYS.profiles, []);
+    const idx = profiles.findIndex((p) => p.id === id);
+    if (idx < 0) {
+      // Demo profiles live outside persisted list — materialize then update
+      const demo = DEMO_PROFILES.find((p) => p.id === id);
+      if (!demo) return null;
+      const next = { ...demo, ...patch, id };
+      profiles.push(next);
+      setItem(STORAGE_KEYS.profiles, profiles);
+      const current = store.getCurrentUser();
+      if (current?.id === id) store.setCurrentUser(next);
+      return next;
+    }
+    const next = { ...profiles[idx], ...patch, id };
+    profiles[idx] = next;
+    setItem(STORAGE_KEYS.profiles, profiles);
+    const current = store.getCurrentUser();
+    if (current?.id === id) store.setCurrentUser(next);
+    return next;
   },
 
   // Events
@@ -936,6 +958,53 @@ export const store = {
     records.push(newRecord);
     setItem(STORAGE_KEYS.passportRecords, records);
     return newRecord;
+  },
+
+  getWinnerSelfies(): WinnerSelfie[] {
+    return getItem<WinnerSelfie[]>(STORAGE_KEYS.winnerSelfies, []);
+  },
+  getWinnerSelfiesForUser(userId: string): WinnerSelfie[] {
+    return store.getWinnerSelfies().filter((s) => s.user_id === userId);
+  },
+  getWinnerSelfieForEvent(eventId: string, userId: string): WinnerSelfie | undefined {
+    return store.getWinnerSelfies().find((s) => s.event_id === eventId && s.user_id === userId);
+  },
+  saveWinnerSelfie(input: {
+    eventId: string;
+    userId: string;
+    selfieDataUrl: string;
+    walletAddress?: string;
+    note?: string;
+  }): WinnerSelfie {
+    const rows = store.getWinnerSelfies();
+    const existingIdx = rows.findIndex(
+      (s) => s.event_id === input.eventId && s.user_id === input.userId,
+    );
+    const row: WinnerSelfie = {
+      id: existingIdx >= 0 ? rows[existingIdx].id : genId(),
+      event_id: input.eventId,
+      user_id: input.userId,
+      selfie_data_url: input.selfieDataUrl,
+      wallet_address: input.walletAddress,
+      note: input.note,
+      created_at: new Date().toISOString(),
+    };
+    if (existingIdx >= 0) rows[existingIdx] = row;
+    else rows.push(row);
+    setItem(STORAGE_KEYS.winnerSelfies, rows);
+
+    const event = store.getEventById(input.eventId);
+    store.createPassportRecord({
+      user_id: input.userId,
+      event_id: input.eventId,
+      record_type: 'certificate',
+      title: `${event?.title || 'Event'} · Winner spotlight selfie`,
+      description: input.note || 'Winner selfie claim for event spotlight / prize offers',
+      skills: ['Winner', 'Spotlight'],
+      hours: 0,
+      verified_at: new Date().toISOString(),
+    });
+    return row;
   },
 
   // Stats

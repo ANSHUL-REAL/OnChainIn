@@ -12,6 +12,20 @@ export interface Profile {
   linkedin_url?: string;
   github_url?: string;
   passport_slug?: string;
+  /** Cardano receive address (for mobile / no-extension users) */
+  cardano_address?: string;
+  created_at: string;
+}
+
+/** Winner spotlight selfie claim after attendance / certificate */
+export interface WinnerSelfie {
+  id: string;
+  event_id: string;
+  user_id: string;
+  /** Compressed JPEG data URL */
+  selfie_data_url: string;
+  wallet_address?: string;
+  note?: string;
   created_at: string;
 }
 

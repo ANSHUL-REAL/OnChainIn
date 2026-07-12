@@ -7,6 +7,46 @@
  */
 import { supabase, isCloudEnabled } from '@/lib/supabase'
 
+/** Map raw PostgREST / network errors to actionable UI text */
+export function humanizeCloudError(raw: string): string {
+  const m = (raw || '').toLowerCase()
+  if (m.includes('pgrst205') || m.includes('could not find the table') || m.includes('oci_store')) {
+    return 'Cloud table missing: run SQL migration 001_onchainin_multiuser.sql in Supabase → SQL Editor'
+  }
+  if (m.includes('jwt') || m.includes('invalid api key') || m.includes('401')) {
+    return 'Supabase key rejected. Use the anon/publishable key from Project Settings → API'
+  }
+  if (m.includes('failed to fetch') || m.includes('network')) {
+    return 'Network error reaching Supabase. Check URL and your connection'
+  }
+  return raw || 'Unknown cloud error'
+}
+
+/** Full SQL for dashboard “copy migration” helpers */
+export const OCI_STORE_MIGRATION_SQL = `-- OnChainIn multi-user store (run once in Supabase SQL Editor)
+create extension if not exists pgcrypto;
+create table if not exists public.oci_store (
+  collection text not null,
+  id text not null,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (collection, id)
+);
+create index if not exists oci_store_collection_idx on public.oci_store (collection);
+alter table public.oci_store enable row level security;
+drop policy if exists oci_store_select_all on public.oci_store;
+drop policy if exists oci_store_insert_all on public.oci_store;
+drop policy if exists oci_store_update_all on public.oci_store;
+drop policy if exists oci_store_delete_all on public.oci_store;
+create policy oci_store_select_all on public.oci_store for select using (true);
+create policy oci_store_insert_all on public.oci_store for insert with check (true);
+create policy oci_store_update_all on public.oci_store for update using (true) with check (true);
+create policy oci_store_delete_all on public.oci_store for delete using (true);
+do $$ begin
+  begin alter publication supabase_realtime add table public.oci_store;
+  exception when duplicate_object then null; when undefined_object then null; end;
+end $$;`
+
 export type CloudStatus = 'offline' | 'connecting' | 'online' | 'error'
 
 type StoreRow = {
@@ -31,6 +71,7 @@ export const CLOUD_COLLECTIONS = [
   'budget_items',
   'certificates',
   'passport_records',
+  'winner_selfies',
   'volunteer_profiles',
   'volunteer_points',
 ] as const
@@ -42,6 +83,7 @@ const LS_SUFFIX = '_v2'
 
 export function collectionToStorageKey(collection: string): string {
   // profiles → OnChainIn_profiles_v2
+  // winner_selfies → OnChainIn_winner_selfies_v2
   return `${LS_PREFIX}${collection}${LS_SUFFIX}`
 }
 
@@ -158,8 +200,9 @@ export async function pullFromCloud(): Promise<void> {
 
       setStatus('online')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.warn('[cloudSync] pull failed', msg)
+      const raw = err instanceof Error ? err.message : String(err)
+      const msg = humanizeCloudError(raw)
+      console.warn('[cloudSync] pull failed', raw)
       setStatus('error', msg)
     } finally {
       pullInFlight = null
