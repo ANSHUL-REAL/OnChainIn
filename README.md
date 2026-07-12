@@ -135,6 +135,3 @@ public/logo.png     # Brand mark
 - [ANSHUL-REAL](https://github.com/ANSHUL-REAL)  
 - [SOURABREDDY394](https://github.com/SOURABREDDY394)  
 - Email: [editzera07@gmail.com](mailto:editzera07@gmail.com)
-
-UI/product flows adapted from [EventOS](https://github.com/SOURABREDDY394/eventos).  
-Cardano attendance proof: **OnChainIn**.
