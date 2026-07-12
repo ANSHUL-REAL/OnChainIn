@@ -698,7 +698,9 @@ export const store = {
     return certs.map(c => ({ ...c, event: events.find(e => e.id === c.event_id) }));
   },
   getCertificateByCode(code: string): Certificate | undefined {
-    return store.getCertificates().find(c => c.certificate_code === code);
+    const needle = (code || '').trim().toUpperCase();
+    if (!needle) return undefined;
+    return store.getCertificates().find(c => (c.certificate_code || '').toUpperCase() === needle);
   },
   createCertificate(cert: Omit<Certificate, 'id' | 'issued_at'>): Certificate {
     const certs = store.getCertificates();

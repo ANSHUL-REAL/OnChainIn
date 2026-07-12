@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router'
 import { DashboardLayout } from '@/components/DashboardLayout'
+import { CertificateDownloadButton } from '@/components/CertificateDownloadButton'
 import store from '@/data/store'
-import { downloadCertificate } from '@/lib/certificate'
-import { Award, Blocks, Download, CheckCircle, Calendar, ExternalLink, Loader2, Shield } from 'lucide-react'
+import { Award, Blocks, CheckCircle, Calendar, ExternalLink, Shield } from 'lucide-react'
 import type { Certificate } from '@/types'
 import { explorerTxUrl, truncateMiddle } from '@/lib/cardano'
 import { WinnerSelfieCard } from '@/components/WinnerSelfieCard'
@@ -11,8 +10,6 @@ import { WinnerSelfieCard } from '@/components/WinnerSelfieCard'
 export default function ParticipantCertificates() {
   const user = store.getCurrentUser()
   const certificates = user ? store.getUserCertificates(user.id) : []
-  const [busy, setBusy] = useState<string | null>(null)
-  const [error, setError] = useState('')
 
   const resolveTx = (cert: Certificate) => {
     if (cert.tx_hash) {
@@ -33,41 +30,8 @@ export default function ParticipantCertificates() {
     }
   }
 
-  const download = async (cert: Certificate) => {
-    setError('')
-    setBusy(cert.id)
-    try {
-      const event = cert.event || store.getEventById(cert.event_id)
-      const organizerName = event
-        ? store.getProfileById(event.organizer_id)?.full_name || 'OnChainIn'
-        : 'OnChainIn'
-      const chain = resolveTx(cert)
-      await downloadCertificate({
-        participantName: user?.full_name || 'Participant',
-        eventName: event?.title || 'Event',
-        date: event?.date || new Date(cert.issued_at).toLocaleDateString(),
-        organizerName,
-        code: cert.certificate_code,
-        role: cert.role,
-        txHash: chain.txHash,
-        explorerUrl: chain.explorerUrl,
-        walletAddress: chain.walletAddress,
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setError(msg || 'Could not generate the certificate. Please try again.')
-    } finally {
-      setBusy(null)
-    }
-  }
-
   return (
     <DashboardLayout title="My Certificates">
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
       {certificates.length === 0 ? (
         <div className="glass-card rounded-2xl border border-[#E7E1D2] bg-white p-10 text-center shadow-sm">
           <Award className="mx-auto mb-3 h-12 w-12 text-[#192837]/15" />
@@ -81,6 +45,9 @@ export default function ParticipantCertificates() {
           {certificates.map((cert) => {
             const chain = resolveTx(cert)
             const event = cert.event || store.getEventById(cert.event_id)
+            const organizerName = event
+              ? store.getProfileById(event.organizer_id)?.full_name || 'OnChainIn'
+              : 'OnChainIn'
             return (
               <div key={cert.id} className="space-y-3">
                 <div className="glass-card flex items-center gap-4 rounded-xl border border-[#E7E1D2] bg-white p-4 shadow-sm">
@@ -88,7 +55,9 @@ export default function ParticipantCertificates() {
                     <Award className="h-6 w-6 text-emerald-700" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-semibold text-[#192837]">{cert.event?.title}</h3>
+                    <h3 className="truncate text-sm font-semibold text-[#192837]">
+                      {event?.title || cert.event?.title || 'Event'}
+                    </h3>
                     <p className="text-xs text-[#5E6256]">{cert.role}</p>
                     <p className="mono-text mt-0.5 truncate text-[11px] text-amber-800">
                       {cert.certificate_code}
@@ -108,7 +77,7 @@ export default function ParticipantCertificates() {
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start">
                     <Link
                       to={`/verify/certificate/${cert.certificate_code}`}
                       className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
@@ -125,19 +94,19 @@ export default function ParticipantCertificates() {
                         <ExternalLink className="h-3 w-3" /> Explorer
                       </a>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => void download(cert)}
-                      disabled={busy === cert.id}
-                      className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-                    >
-                      {busy === cert.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Download className="h-3 w-3" />
-                      )}{' '}
-                      Download
-                    </button>
+                    <CertificateDownloadButton
+                      data={{
+                        participantName: user?.full_name || 'Participant',
+                        eventName: event?.title || 'Event',
+                        date: event?.date || new Date(cert.issued_at).toLocaleDateString(),
+                        organizerName,
+                        code: cert.certificate_code,
+                        role: cert.role,
+                        txHash: chain.txHash,
+                        explorerUrl: chain.explorerUrl,
+                        walletAddress: chain.walletAddress,
+                      }}
+                    />
                   </div>
                 </div>
                 {event && user && (

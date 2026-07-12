@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { QRCodeSVG } from 'qrcode.react';
-import { Award, Blocks, Calendar, CheckCircle, Clock, Download, ExternalLink, QrCode, Shield, UserCheck, XCircle } from 'lucide-react';
+import { Award, Blocks, Calendar, CheckCircle, Clock, ExternalLink, QrCode, Shield, UserCheck, XCircle } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
-import { downloadCertificate } from '@/lib/certificate';
+import { CertificateDownloadButton } from '@/components/CertificateDownloadButton';
 import { getParticipantProof } from '@/lib/proofEngine';
 
 export default function ParticipantProofPage() {
@@ -20,18 +20,6 @@ export default function ParticipantProofPage() {
     } catch {
       setMessage(url);
     }
-  };
-
-  const download = async () => {
-    if (!proof?.certificate || !proof.event) return;
-    await downloadCertificate({
-      participantName: proof.participant?.full_name || 'Participant',
-      eventName: proof.event.title,
-      date: proof.event.date,
-      organizerName: proof.organizer?.full_name || 'OnChainIn',
-      code: proof.certificate.certificate_code,
-      role: proof.certificate.role,
-    });
   };
 
   return (
@@ -95,10 +83,28 @@ export default function ParticipantProofPage() {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3 mt-8">
-                <button onClick={download} disabled={!proof.certificate} className="gold-btn inline-flex items-center justify-center gap-2 disabled:opacity-50">
-                  <Download className="w-4 h-4" /> Download Certificate
-                </button>
-                <button onClick={shareProof} className="ghost-btn rounded-full inline-flex items-center justify-center gap-2">
+                {proof.certificate && proof.event ? (
+                  <CertificateDownloadButton
+                    label="Download Certificate"
+                    className="gold-btn inline-flex items-center justify-center gap-2"
+                    data={{
+                      participantName: proof.participant?.full_name || 'Participant',
+                      eventName: proof.event.title,
+                      date: proof.event.date,
+                      organizerName: proof.organizer?.full_name || 'OnChainIn',
+                      code: proof.certificate.certificate_code,
+                      role: proof.certificate.role,
+                      txHash: proof.attendance?.tx_hash || proof.certificate.tx_hash,
+                      explorerUrl: proof.attendance?.explorer_url || proof.certificate.explorer_url,
+                      walletAddress: proof.attendance?.wallet_address || proof.certificate.wallet_address,
+                    }}
+                  />
+                ) : (
+                  <button type="button" disabled className="gold-btn inline-flex items-center justify-center gap-2 opacity-50">
+                    Download Certificate
+                  </button>
+                )}
+                <button type="button" onClick={shareProof} className="ghost-btn rounded-full inline-flex items-center justify-center gap-2">
                   <ExternalLink className="w-4 h-4" /> Share Proof
                 </button>
               </div>

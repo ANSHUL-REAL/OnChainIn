@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { DashboardLayout } from '@/components/DashboardLayout'
+import { CertificateDownloadButton } from '@/components/CertificateDownloadButton'
 import store from '@/data/store'
-import { downloadCertificate } from '@/lib/certificate'
-import { Award, Blocks, CheckCircle, Download, ExternalLink, Loader2 } from 'lucide-react'
+import { Award, Blocks, CheckCircle, ExternalLink } from 'lucide-react'
 import { truncateMiddle } from '@/lib/cardano'
 
 export default function EventCertificates() {
   const { id } = useParams<{ id: string }>()
   const event = store.getEventById(id || '')
   const [, setVersion] = useState(0)
-  const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   if (!event) {
@@ -28,7 +27,10 @@ export default function EventCertificates() {
   const registrations = store.getEventRegistrations(event.id)
   const attended = registrations.filter((r) => r.status === 'attended')
   const existingCerts = store.getEventCertificates(event.id)
-  const certByUser = new Map(existingCerts.map((c) => [c.user_id, c]))
+
+  const findCertForParticipant = (participantId: string) =>
+    existingCerts.find((c) => c.user_id === participantId) ||
+    store.getUserCertificates(participantId).find((c) => c.event_id === event.id)
 
   const issue = (participantId: string, participantName: string) => {
     setError('')
@@ -53,33 +55,6 @@ export default function EventCertificates() {
     setVersion((v) => v + 1)
   }
 
-  const download = async (participantName: string, code: string, participantId: string) => {
-    setError('')
-    setBusy(code)
-    try {
-      const cert = store.getCertificateByCode(code)
-      const att = store.getAttendance().find(
-        (a) => a.event_id === event.id && a.participant_id === participantId && a.tx_hash,
-      )
-      await downloadCertificate({
-        participantName,
-        eventName: event.title,
-        date: event.date,
-        organizerName,
-        code,
-        role: 'Participant',
-        txHash: cert?.tx_hash || att?.tx_hash,
-        explorerUrl: cert?.explorer_url || att?.explorer_url,
-        walletAddress: cert?.wallet_address || att?.wallet_address,
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setError(msg || 'Could not generate the certificate. Please try again.')
-    } finally {
-      setBusy(null)
-    }
-  }
-
   return (
     <DashboardLayout title="Certificates">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
@@ -87,6 +62,10 @@ export default function EventCertificates() {
           <p className="text-sm font-semibold text-[#192837]">{event.title}</p>
           <p className="mt-1 text-sm text-[#5E6256]">
             {attended.length} checked-in · certificate eligible · {existingCerts.length} issued
+          </p>
+          <p className="mt-1 text-[11px] text-[#9AA08D]">
+            Issue a certificate, then click Download — a Save dialog / preview will appear if the
+            browser blocks auto-download.
           </p>
         </div>
       </div>
@@ -108,7 +87,7 @@ export default function EventCertificates() {
       ) : (
         <div className="space-y-2.5">
           {attended.map((reg) => {
-            const cert = certByUser.get(reg.participant_id)
+            const cert = findCertForParticipant(reg.participant_id)
             const name = reg.participant?.full_name || 'Participant'
             const att = store.getAttendanceByRegistration(reg.id)
             const txHash = cert?.tx_hash || att?.tx_hash
@@ -140,19 +119,19 @@ export default function EventCertificates() {
                     <span className="hidden items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
                       <CheckCircle className="h-3 w-3" /> Issued
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => void download(name, cert.certificate_code, reg.participant_id)}
-                      disabled={busy === cert.certificate_code}
-                      className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
-                    >
-                      {busy === cert.certificate_code ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Download className="h-3 w-3" />
-                      )}{' '}
-                      Download
-                    </button>
+                    <CertificateDownloadButton
+                      data={{
+                        participantName: name,
+                        eventName: event.title,
+                        date: event.date,
+                        organizerName,
+                        code: cert.certificate_code,
+                        role: cert.role || 'Participant',
+                        txHash: cert.tx_hash || att?.tx_hash,
+                        explorerUrl: cert.explorer_url || att?.explorer_url,
+                        walletAddress: cert.wallet_address || att?.wallet_address,
+                      }}
+                    />
                     <Link
                       to={`/verify/certificate/${cert.certificate_code}`}
                       className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"

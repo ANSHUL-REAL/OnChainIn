@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import {
   Award,
@@ -6,16 +5,14 @@ import {
   Building2,
   Calendar,
   CheckCircle,
-  Download,
   ExternalLink,
-  Loader2,
   User,
   XCircle,
 } from 'lucide-react'
 import { Footer } from '@/components/Footer'
 import { Navbar } from '@/components/Navbar'
+import { CertificateDownloadButton } from '@/components/CertificateDownloadButton'
 import store from '@/data/store'
-import { downloadCertificate } from '@/lib/certificate'
 import { explorerTxUrl, truncateMiddle } from '@/lib/cardano'
 import { isFreeEvent } from '@/lib/eventLifecycle'
 import { ChainTxStatus } from '@/components/ChainTxStatus'
@@ -37,32 +34,6 @@ export default function VerifyCertificate() {
   const txHash = cert?.tx_hash || attendance?.tx_hash
   const explorerUrl = cert?.explorer_url || (txHash ? explorerTxUrl(txHash) : undefined)
   const walletAddress = cert?.wallet_address || attendance?.wallet_address
-
-  const [downloading, setDownloading] = useState(false)
-  const [downloadError, setDownloadError] = useState('')
-
-  const download = async () => {
-    if (!cert || !event) return
-    setDownloadError('')
-    setDownloading(true)
-    try {
-      await downloadCertificate({
-        participantName: user?.full_name || 'Participant',
-        eventName: event.title,
-        date: event.date,
-        organizerName: organizer?.full_name || 'OnChainIn',
-        code: cert.certificate_code,
-        role: cert.role,
-        txHash,
-        explorerUrl,
-        walletAddress,
-      })
-    } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Download failed. Try Chrome/Edge and allow downloads.')
-    } finally {
-      setDownloading(false)
-    }
-  }
 
   return (
     <div className="eventos-light-app min-h-screen bg-[#F7F6EB] text-[#14150F]">
@@ -204,21 +175,24 @@ export default function VerifyCertificate() {
                     <p className="text-[11px] text-[#9AA08D]">Certificate ID · scan or share to verify</p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void download()}
-                    disabled={downloading}
-                    className="gold-btn mt-6 inline-flex items-center gap-2 disabled:opacity-60"
-                  >
-                    {downloading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    {downloading ? 'Preparing…' : 'Download certificate'}
-                  </button>
-                  {downloadError && (
-                    <p className="mt-2 text-sm text-red-700">{downloadError}</p>
+                  {cert && event && (
+                    <div className="mt-6">
+                      <CertificateDownloadButton
+                        label="Download certificate"
+                        className="gold-btn inline-flex items-center gap-2"
+                        data={{
+                          participantName: user?.full_name || 'Participant',
+                          eventName: event.title,
+                          date: event.date,
+                          organizerName: organizer?.full_name || 'OnChainIn',
+                          code: cert.certificate_code,
+                          role: cert.role,
+                          txHash,
+                          explorerUrl,
+                          walletAddress,
+                        }}
+                      />
+                    </div>
                   )}
                   {txHash && (
                     <p className="mt-2 text-[11px] text-[#9AA08D]">
