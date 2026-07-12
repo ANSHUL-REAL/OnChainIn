@@ -68,7 +68,7 @@ Write a **long, polished public event description** that organizers can publish 
 - start_time / end_time: HH:MM 24h; defaults 10:00–17:00 if not said
 - max_participants: integer when seats mentioned; else sensible default 50–200 by type
 - venue / city: use if given; else plausible "To be announced" / empty city
-- registration_fields: 5–8 practical questions (mix text, email, phone, textarea, select)
+- registration_fields: **exactly 4–6 UNIQUE questions**. NEVER repeat Name/Full Name/Email/Phone. Prefer: one Full Name, one Email, one Phone, College, Why attend, plus at most 1–2 custom questions.
 - volunteer_roles: 3–5 roles with **2–3 sentence** descriptions each
 - sponsor_packages: 2–3 packages with rich description + 3–5 benefits each
 - budget_categories: mix of income and expense line titles

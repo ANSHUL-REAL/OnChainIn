@@ -18,6 +18,7 @@ import {
   seedBudgetItems, seedCertificates, seedPassportRecords, seedVolunteerRoles
 } from './seedData';
 import { isActivePublishedEvent, isPastEvent, sortPastEvents, sortUpcomingEvents } from '@/lib/eventLifecycle';
+import { defaultRegistrationFormFields, normalizeRegistrationFormFields } from '@/lib/formFields';
 
 const STORAGE_KEYS = {
   // v2 = clean identity (no EventOS "Sourab" seed identity)
@@ -215,21 +216,15 @@ function generateRegistrationCode() {
 }
 
 function defaultFormFields(eventId: string): EventFormField[] {
-  const fields: Array<Pick<EventFormField, 'label' | 'field_type' | 'required'>> = [
-    { label: 'Full Name', field_type: 'text', required: true },
-    { label: 'Email', field_type: 'email', required: true },
-    { label: 'Phone Number', field_type: 'phone', required: true },
-    { label: 'College / Organization', field_type: 'text', required: true },
-    { label: 'Why do you want to attend?', field_type: 'textarea', required: true },
-  ];
-
-  return fields.map((field, index) => ({
+  return defaultRegistrationFormFields().map((field, index) => ({
     id: `default-${eventId}-${index}`,
     event_id: eventId,
-    options: [],
+    label: field.label,
+    field_type: field.field_type,
+    required: field.required,
+    options: field.options || [],
     sort_order: index,
     created_at: new Date().toISOString(),
-    ...field,
   }));
 }
 
@@ -464,16 +459,36 @@ export const store = {
   // Registration Form Fields
   getEventFormFields(eventId: string): EventFormField[] {
     const fields = getItem<EventFormField[]>(STORAGE_KEYS.eventFormFields, []).filter(field => field.event_id === eventId);
-    return fields.length > 0 ? fields.sort((a, b) => a.sort_order - b.sort_order) : defaultFormFields(eventId);
+    if (fields.length === 0) return defaultFormFields(eventId);
+    // Defensive: clean legacy / AI duplicates when reading
+    const cleaned = normalizeRegistrationFormFields(fields);
+    return cleaned.map((field, index) => {
+      const existing = fields.find(
+        (f) => f.label.trim().toLowerCase() === field.label.trim().toLowerCase(),
+      );
+      return {
+        id: existing?.id || `norm-${eventId}-${index}`,
+        event_id: eventId,
+        label: field.label,
+        field_type: field.field_type,
+        required: field.required,
+        options: field.options || [],
+        sort_order: index,
+        created_at: existing?.created_at || new Date().toISOString(),
+      };
+    });
   },
   getCustomEventFormFields(eventId: string): EventFormField[] {
-    return getItem<EventFormField[]>(STORAGE_KEYS.eventFormFields, [])
-      .filter(field => field.event_id === eventId)
-      .sort((a, b) => a.sort_order - b.sort_order);
+    const stored = getItem<EventFormField[]>(STORAGE_KEYS.eventFormFields, []).filter(
+      (field) => field.event_id === eventId,
+    );
+    if (stored.length === 0) return [];
+    return store.getEventFormFields(eventId);
   },
   saveEventFormFields(eventId: string, fields: Array<Omit<EventFormField, 'id' | 'event_id' | 'created_at'>>) {
     const allFields = getItem<EventFormField[]>(STORAGE_KEYS.eventFormFields, []).filter(field => field.event_id !== eventId);
-    const nextFields: EventFormField[] = fields.map((field, index) => ({
+    const cleaned = normalizeRegistrationFormFields(fields);
+    const nextFields: EventFormField[] = cleaned.map((field, index) => ({
       ...field,
       id: genId(),
       event_id: eventId,

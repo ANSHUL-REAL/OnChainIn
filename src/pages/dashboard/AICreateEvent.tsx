@@ -6,6 +6,7 @@ import store from '@/data/store';
 import type { EventFormField } from '@/types';
 import { isCloudEnabled, requireSupabase } from '@/lib/supabase';
 import { generateEventDraftWithGroq, isGroqConfigured } from '@/lib/ai/groqEventDraft';
+import { normalizeRegistrationFormFields } from '@/lib/formFields';
 
 type DraftField = Omit<EventFormField, 'id' | 'event_id' | 'created_at'>;
 
@@ -235,6 +236,16 @@ function toDraft(edgeDraft: EdgeEventDraft): EventDraft {
     ...(foundDate ? [] : ['Date was not found. OnChainIn used an editable upcoming demo date.']),
   ];
 
+  // One Name/Email/Phone only — AI often repeats these
+  const cleanedFields = normalizeRegistrationFormFields(
+    fields.map((field, index) => ({
+      label: field.label || `Question ${index + 1}`,
+      field_type: field.field_type || 'text',
+      required: Boolean(field.required),
+      options: Array.isArray(field.options) ? field.options : [],
+    })),
+  );
+
   return {
     title,
     slug: slugify(`${title || 'event'}-${Date.now().toString().slice(-4)}`),
@@ -246,11 +257,11 @@ function toDraft(edgeDraft: EdgeEventDraft): EventDraft {
     venue: edgeDraft.venue || 'To be announced',
     city: edgeDraft.city || '',
     max_participants: Number(edgeDraft.max_participants) || 0,
-    formFields: fields.map((field, index) => ({
-      label: field.label || `Question ${index + 1}`,
-      field_type: field.field_type || 'text',
-      required: Boolean(field.required),
-      options: Array.isArray(field.options) ? field.options : [],
+    formFields: cleanedFields.map((field, index) => ({
+      label: field.label,
+      field_type: field.field_type,
+      required: field.required,
+      options: field.options,
       sort_order: index,
     })),
     volunteerRoles: (edgeDraft.volunteer_roles || []).map(role => ({

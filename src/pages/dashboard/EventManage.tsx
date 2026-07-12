@@ -93,8 +93,17 @@ export default function EventManage() {
     const cleanFields = formFields
       .filter(field => field.label.trim())
       .map((field, index) => ({ ...field, label: field.label.trim(), sort_order: index }));
-    store.saveEventFormFields(event.id, cleanFields);
-    setFormFields(cleanFields);
+    // saveEventFormFields also dedupes Name/Email/Phone
+    const saved = store.saveEventFormFields(event.id, cleanFields);
+    setFormFields(
+      saved.map(({ label, field_type, required, options, sort_order }) => ({
+        label,
+        field_type,
+        required,
+        options,
+        sort_order,
+      })),
+    );
     setSaved(true);
   };
 
