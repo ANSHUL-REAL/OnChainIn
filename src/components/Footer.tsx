@@ -15,7 +15,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-sm text-[#D9CFBC] leading-relaxed max-w-xs">
-              Event operations powered by Cardano. Lace check-in, on-chain attendance, certificates with tx hashes.
+              Event operations powered by Cardano. Multi-wallet check-in (Lace, Eternl, Nami…), on-chain attendance, certificates with tx hashes.
             </p>
           </div>
           <div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CardanoWallet, useWallet } from '@meshsdk/react'
+import { useWallet } from '@meshsdk/react'
 import { Blocks, ExternalLink, Loader2, Wallet } from 'lucide-react'
 import {
   CARDANO,
@@ -10,6 +10,7 @@ import {
   type AdaPaymentPayload,
 } from '@/lib/cardano'
 import { ChainTxStatus } from '@/components/ChainTxStatus'
+import { WalletConnect } from '@/components/WalletConnect'
 
 type Props = {
   label: string
@@ -47,7 +48,7 @@ export function CardanoAdaPay({
   const pay = async () => {
     setError('')
     if (!connected || !wallet) {
-      setError('Connect a Cardano Preprod wallet first (Lace).')
+      setError('Connect a Cardano Preprod wallet first (Lace, Eternl, Nami, Flint, Vespr, …).')
       return
     }
     if (!toAddress?.trim()) {
@@ -92,7 +93,9 @@ export function CardanoAdaPay({
           </p>
           {helperText && <p className="mt-1 text-[11px] leading-4 text-[#5E6256]">{helperText}</p>}
         </div>
-        <CardanoWallet label="Connect" persist isDark={false} />
+      </div>
+      <div className="mt-2">
+        <WalletConnect label="Connect wallet" showHints />
       </div>
       <button
         type="button"
@@ -101,7 +104,7 @@ export function CardanoAdaPay({
         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#7C3AED] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50"
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Blocks className="h-3.5 w-3.5" />}
-        {connected ? label : 'Connect wallet, then pay in ADA'}
+        {connected ? label : 'Connect any wallet, then pay in ADA'}
       </button>
       {error && <p className="mt-2 text-[11px] font-semibold text-red-600">{error}</p>}
       {lastTx && (

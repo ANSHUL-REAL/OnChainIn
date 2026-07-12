@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { CardanoWallet, useWallet } from '@meshsdk/react'
+import { useWallet } from '@meshsdk/react'
 import { DashboardLayout } from '@/components/DashboardLayout'
 import { MobileWalletPanel, isMobileDevice } from '@/components/MobileWalletPanel'
 import { WinnerSelfieCard } from '@/components/WinnerSelfieCard'
+import { WalletConnect } from '@/components/WalletConnect'
 import store from '@/data/store'
 import {
   Ticket,
@@ -58,8 +59,8 @@ export default function ParticipantTickets() {
     if (!connected || !wallet) {
       setError(
         mobile
-          ? 'On phone: open this site inside Vespr/Eternl browser (see Mobile wallet panel), then connect. Or use the ticket QR at the desk.'
-          : 'Connect a Cardano Preprod wallet first (Lace extension on desktop).',
+          ? 'On phone: open this site inside Vespr/Eternl/Lace mobile browser, then connect. Or use the ticket QR at the desk.'
+          : 'Connect a Cardano Preprod wallet first (Lace, Eternl, Nami, Flint, or any CIP-30 wallet).',
       )
       return
     }
@@ -113,10 +114,14 @@ export default function ParticipantTickets() {
           </p>
           <p className="mt-1 text-sm text-[#5E6256]">
             <strong>Approval ≠ check-in.</strong> After approval, check-in unlocks on event day. Desktop:
-            connect Lace. Phone: use the mobile panel below (QR faucet + address + wallet browser).
+            any CIP-30 wallet (Lace, Eternl, Nami, Flint…). Phone: mobile panel + in-app browser.
           </p>
         </div>
-        {!mobile && <CardanoWallet label="Connect Wallet" persist isDark={false} />}
+        {!mobile && (
+          <div className="max-w-sm">
+            <WalletConnect label="Connect wallet" />
+          </div>
+        )}
       </div>
 
       <div className="mb-6">
@@ -134,11 +139,11 @@ export default function ParticipantTickets() {
         <div className="mb-5 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4">
           <p className="text-xs font-bold text-[#7C3AED]">Phone users</p>
           <p className="mt-1 text-sm text-[#5E6256]">
-            Extension wallets won’t appear in Safari/Chrome. Open OnChainIn inside Vespr or Eternl,
-            or show your <strong>ticket QR</strong> at the organizer desk for QR check-in.
+            Mobile Chrome/Safari won’t show desktop extensions. Open OnChainIn inside Vespr / Eternl
+            / Lace mobile browser, or use your <strong>ticket QR</strong> at the desk.
           </p>
           <div className="mt-3">
-            <CardanoWallet label="Connect (wallet browser only)" persist isDark={false} />
+            <WalletConnect label="Connect wallet" />
           </div>
         </div>
       )}

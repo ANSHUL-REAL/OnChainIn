@@ -146,7 +146,7 @@ export function getCheckInWindow(event: Event, now = new Date()): CheckInWindow 
 
   return {
     phase: 'open',
-    message: `Check-in is open until ${formatWhen(closesAt)}. Connect Lace to record attendance on Cardano.`,
+    message: `Check-in is open until ${formatWhen(closesAt)}. Connect any CIP-30 wallet (Lace, Eternl, Nami, …) for Cardano attendance.`,
     opensAt,
     closesAt,
     canCheckIn: true,

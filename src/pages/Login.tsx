@@ -19,7 +19,7 @@ const productPoints = [
   'Enter your real name — that is your account for this device/cloud',
   'Pick a role (organizer, participant, volunteer, sponsor)',
   'You stay logged in until you sign out',
-  'Cardano wallet is separate — connect Lace when checking in',
+  'Cardano wallet is separate — connect Lace, Eternl, Nami, or any CIP-30 wallet when checking in',
 ]
 
 export default function Login() {

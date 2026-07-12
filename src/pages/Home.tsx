@@ -23,7 +23,7 @@ const featurePills = [
 
 const moduleStrip = [
   'Cardano Check-in',
-  'Lace / CIP-30',
+  'Lace · Eternl · Nami · CIP-30',
   'AI Create Event',
   'Registration Form',
   'Applications',

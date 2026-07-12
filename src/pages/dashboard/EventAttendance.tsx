@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import jsQR from 'jsqr';
 import { AlertCircle, Camera, CameraOff, CheckCircle, ExternalLink, Loader2, QrCode, Search, UserCheck, Blocks } from 'lucide-react';
-import { CardanoWallet, useWallet } from '@meshsdk/react';
+import { useWallet } from '@meshsdk/react';
+import { WalletConnect } from '@/components/WalletConnect';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import store from '@/data/store';
 import { getCheckInWindow } from '@/lib/eventLifecycle';
@@ -370,7 +371,7 @@ export default function EventAttendance() {
                 </div>
               </div>
               <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                <CardanoWallet label="Connect Wallet" persist isDark={false} />
+                <WalletConnect label="Connect wallet" />
                 <button
                   type="button"
                   disabled={attendanceClosed || cardanoBusy || !connected}

@@ -129,9 +129,9 @@ export function MobileWalletPanel({ forceMobileStyle }: Props) {
             {mobile ? 'Phone wallet (no extension)' : 'Mobile / no-extension wallet'}
           </p>
           <p className="mt-1 text-sm leading-6 text-[#5E6256]">
-            Phone browsers can’t use Lace Chrome extensions. Save your Cardano{' '}
-            <strong>Preprod receive address</strong>, fund it via faucet QR, then open this site in a
-            mobile wallet browser — or show your ticket QR at the desk.
+            Phone browsers can’t load desktop extensions (Lace/Eternl/Nami). Save your Cardano{' '}
+            <strong>Preprod receive address</strong>, fund via faucet, open this site in a mobile
+            wallet browser — or show your ticket QR at the desk.
           </p>
         </div>
       </div>
