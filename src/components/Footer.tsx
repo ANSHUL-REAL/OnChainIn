@@ -67,29 +67,41 @@ export function Footer() {
           </div>
           <div>
             <h4 className="text-sm font-black text-[#FFF8E9] mb-4">Team & contact</h4>
-            <div className="space-y-2.5">
-              <a
-                href="mailto:editzera07@gmail.com"
-                className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
-              >
-                <Mail className="w-4 h-4 text-[#F7C56B]" /> editzera07@gmail.com
-              </a>
-              <a
-                href="https://github.com/ANSHUL-REAL"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
-              >
-                <Github className="w-4 h-4 text-[#F7C56B]" /> github.com/ANSHUL-REAL
-              </a>
-              <a
-                href="https://github.com/SOURABREDDY394"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
-              >
-                <Github className="w-4 h-4 text-[#F7C56B]" /> github.com/SOURABREDDY394
-              </a>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-[#FFF8E9]">Anshul Nautiyal</p>
+                <a
+                  href="mailto:anshulnautiyal0512@gmail.com"
+                  className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
+                >
+                  <Mail className="w-4 h-4 text-[#F7C56B]" /> anshulnautiyal0512@gmail.com
+                </a>
+                <a
+                  href="https://github.com/ANSHUL-REAL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
+                >
+                  <Github className="w-4 h-4 text-[#F7C56B]" /> github.com/ANSHUL-REAL
+                </a>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-[#FFF8E9]">Sourab Reddy</p>
+                <a
+                  href="mailto:sourabreddimalla@gmail.com"
+                  className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
+                >
+                  <Mail className="w-4 h-4 text-[#F7C56B]" /> sourabreddimalla@gmail.com
+                </a>
+                <a
+                  href="https://github.com/SOURABREDDY394"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#D9CFBC] hover:text-[#F7C56B] transition-colors"
+                >
+                  <Github className="w-4 h-4 text-[#F7C56B]" /> github.com/SOURABREDDY394
+                </a>
+              </div>
             </div>
           </div>
         </div>

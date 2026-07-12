@@ -132,6 +132,7 @@ public/logo.png     # Brand mark
 
 **Made with love ❤️ by team RAGNAROK**
 
-- [ANSHUL-REAL](https://github.com/ANSHUL-REAL)  
-- [SOURABREDDY394](https://github.com/SOURABREDDY394)  
-- Email: [editzera07@gmail.com](mailto:editzera07@gmail.com)
+| Name | GitHub | Email |
+|------|--------|-------|
+| Anshul Nautiyal | [ANSHUL-REAL](https://github.com/ANSHUL-REAL) | [anshulnautiyal0512@gmail.com](mailto:anshulnautiyal0512@gmail.com) |
+| Sourab Reddy | [SOURABREDDY394](https://github.com/SOURABREDDY394) | [sourabreddimalla@gmail.com](mailto:sourabreddimalla@gmail.com) |
