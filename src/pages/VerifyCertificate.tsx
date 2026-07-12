@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import {
   Award,
@@ -7,6 +8,7 @@ import {
   CheckCircle,
   Download,
   ExternalLink,
+  Loader2,
   User,
   XCircle,
 } from 'lucide-react'
@@ -36,19 +38,30 @@ export default function VerifyCertificate() {
   const explorerUrl = cert?.explorer_url || (txHash ? explorerTxUrl(txHash) : undefined)
   const walletAddress = cert?.wallet_address || attendance?.wallet_address
 
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+
   const download = async () => {
     if (!cert || !event) return
-    await downloadCertificate({
-      participantName: user?.full_name || 'Participant',
-      eventName: event.title,
-      date: event.date,
-      organizerName: organizer?.full_name || 'OnChainIn',
-      code: cert.certificate_code,
-      role: cert.role,
-      txHash,
-      explorerUrl,
-      walletAddress,
-    })
+    setDownloadError('')
+    setDownloading(true)
+    try {
+      await downloadCertificate({
+        participantName: user?.full_name || 'Participant',
+        eventName: event.title,
+        date: event.date,
+        organizerName: organizer?.full_name || 'OnChainIn',
+        code: cert.certificate_code,
+        role: cert.role,
+        txHash,
+        explorerUrl,
+        walletAddress,
+      })
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Download failed. Try Chrome/Edge and allow downloads.')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -192,12 +205,21 @@ export default function VerifyCertificate() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => void download()}
-                    className="gold-btn mt-6 inline-flex items-center gap-2"
+                    disabled={downloading}
+                    className="gold-btn mt-6 inline-flex items-center gap-2 disabled:opacity-60"
                   >
-                    <Download className="h-4 w-4" />
-                    Download certificate
+                    {downloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    {downloading ? 'Preparing…' : 'Download certificate'}
                   </button>
+                  {downloadError && (
+                    <p className="mt-2 text-sm text-red-700">{downloadError}</p>
+                  )}
                   {txHash && (
                     <p className="mt-2 text-[11px] text-[#9AA08D]">
                       Full Cardano tx hash is shown above for verification. The PNG keeps only a tiny

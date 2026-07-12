@@ -16,11 +16,25 @@ export interface CertificateData {
   walletAddress?: string
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string, timeoutMs = 8000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = reject
+    // Needed if ever loaded cross-origin so canvas stays exportable
+    if (!src.startsWith('data:')) {
+      img.crossOrigin = 'anonymous'
+    }
+    const timer = window.setTimeout(() => {
+      img.src = ''
+      reject(new Error('Image load timed out'))
+    }, timeoutMs)
+    img.onload = () => {
+      window.clearTimeout(timer)
+      resolve(img)
+    }
+    img.onerror = () => {
+      window.clearTimeout(timer)
+      reject(new Error('Image failed to load'))
+    }
     img.src = src
   })
 }
@@ -32,6 +46,14 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) 
     t = t.slice(0, -1)
   }
   return `${t}…`
+}
+
+function safeFileName(code: string): string {
+  const cleaned = (code || 'certificate')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 80)
+  return `certificate-${cleaned || 'download'}.png`
 }
 
 /** Draw very small hash text along the certificate border (not body content). */
@@ -55,6 +77,61 @@ function drawBorderHash(ctx: CanvasRenderingContext2D, hash: string, W: number, 
   ctx.restore()
 }
 
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob && blob.size > 0) resolve(blob)
+        else {
+          // Fallback via data URL (older browsers / edge cases)
+          try {
+            const dataUrl = canvas.toDataURL('image/png')
+            const bin = atob(dataUrl.split(',')[1] || '')
+            const bytes = new Uint8Array(bin.length)
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+            const fallback = new Blob([bytes], { type: 'image/png' })
+            if (fallback.size > 0) resolve(fallback)
+            else reject(new Error('Could not export certificate image'))
+          } catch (e) {
+            reject(e instanceof Error ? e : new Error('Could not export certificate image'))
+          }
+        }
+      },
+      'image/png',
+      1,
+    )
+  })
+}
+
+/** Trigger a real browser download (works better than bare a.click() on many browsers). */
+function triggerDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob)
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.rel = 'noopener'
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
+    // Keep the object URL briefly so the browser can start the download
+    window.setTimeout(() => {
+      link.remove()
+      URL.revokeObjectURL(url)
+    }, 1500)
+  } catch {
+    // Last resort: open PNG in a new tab so user can save manually
+    const opened = window.open(url, '_blank')
+    if (!opened) {
+      URL.revokeObjectURL(url)
+      throw new Error(
+        'Browser blocked the download. Allow downloads for this site, or try another browser.',
+      )
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+}
+
 export async function downloadCertificate(data: CertificateData): Promise<void> {
   const W = 1000
   const H = 760
@@ -62,7 +139,9 @@ export async function downloadCertificate(data: CertificateData): Promise<void> 
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  if (!ctx) {
+    throw new Error('Your browser cannot draw certificates (canvas unavailable). Try Chrome or Edge.')
+  }
 
   // Soft paper background
   ctx.fillStyle = '#FBF9F3'
@@ -92,15 +171,15 @@ export async function downloadCertificate(data: CertificateData): Promise<void> 
     ctx.stroke()
   }
 
-  // Brand logo at top center
+  // Brand logo at top center (optional — never block download)
   let logoDrawn = false
   try {
-    const logo = await loadImage(`${window.location.origin}/logo.png`)
+    const logo = await loadImage(`${window.location.origin}/logo.png`, 5000)
     const logoSize = 72
     ctx.drawImage(logo, W / 2 - logoSize / 2, 58, logoSize, logoSize)
     logoDrawn = true
   } catch {
-    /* logo optional if offline */
+    /* logo optional if offline / blocked */
   }
 
   const headerY = logoDrawn ? 150 : 100
@@ -194,7 +273,7 @@ export async function downloadCertificate(data: CertificateData): Promise<void> 
   try {
     const verifyUrl = `${window.location.origin}/verify/certificate/${data.code}`
     const qr = await qrToDataUrl(verifyUrl, 120)
-    const qrImg = await loadImage(qr)
+    const qrImg = await loadImage(qr, 5000)
     ctx.drawImage(qrImg, W - 250, footY - 30, 96, 96)
     ctx.fillStyle = '#5E6256'
     ctx.font = '11px Arial, sans-serif'
@@ -208,8 +287,6 @@ export async function downloadCertificate(data: CertificateData): Promise<void> 
     drawBorderHash(ctx, data.txHash, W, H)
   }
 
-  const link = document.createElement('a')
-  link.download = `certificate-${data.code}.png`
-  link.href = canvas.toDataURL('image/png')
-  link.click()
+  const blob = await canvasToBlob(canvas)
+  triggerDownload(blob, safeFileName(data.code))
 }

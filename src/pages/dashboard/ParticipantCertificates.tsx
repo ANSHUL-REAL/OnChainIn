@@ -53,8 +53,9 @@ export default function ParticipantCertificates() {
         explorerUrl: chain.explorerUrl,
         walletAddress: chain.walletAddress,
       })
-    } catch {
-      setError('Could not generate the certificate. Please try again.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg || 'Could not generate the certificate. Please try again.')
     } finally {
       setBusy(null)
     }
